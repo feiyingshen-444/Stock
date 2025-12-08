@@ -276,6 +276,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="股票名称" FontSize="12" Foreground="#757575"/>
@@ -292,6 +293,10 @@
                         <StackPanel Grid.Column="3">
                             <TextBlock Text="成交量" FontSize="12" Foreground="#757575"/>
                             <TextBlock x:Name="txtVolume" FontSize="16" FontWeight="Bold" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="最新开盘日期" FontSize="12" Foreground="#757575"/>
+                            <TextBlock x:Name="txtNewDate" FontSize="16" FontWeight="Bold" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>

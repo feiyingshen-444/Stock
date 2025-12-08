@@ -1,109 +1,48 @@
+using StockAnalysisSystem.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using Microsoft.Data.SqlClient;
+using System.Data.SqlClient;
 using System.Linq;
-using StockAnalysisSystem.Models;
+using System.Windows;
 
 namespace StockAnalysisSystem.Data
 {
     public class StockRepository
     {
-        private readonly string _connectionString;
+        private readonly string _connectionString = $"server={"localhost"};database={"StockAnalysisDB"};uid={"sa"};pwd={"336699"};";
+        private SqlConnection sqlCon;
+
+        
 
         public StockRepository()
         {
             // 从配置文件读取连接字符串，这里使用默认值
-            _connectionString = "Server=localhost;Database=StockAnalysisDB;User Id=sa;Password=336699;TrustServerCertificate=True;";
-            InitializeDatabase();
-        }
+            // _connectionString = "Server=localhost;Database=StockAnalysisDB;User Id=sa;Password=336699;TrustServerCertificate=True;";
 
-        private void InitializeDatabase()
+            sqlCon = new SqlConnection(_connectionString);
+            TestConnection();   //连接数据库
+        }
+        public bool TestConnection()
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-                connection.Open();
-
-                // 创建数据库（如果不存在）
-                string createDbSql = @"
-                    IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'StockAnalysisDB')
-                    BEGIN
-                        CREATE DATABASE StockAnalysisDB;
-                    END;
-                ";
-
-                // 切换到目标数据库
-                var masterConnection = new SqlConnection("Server=localhost;Database=master;Integrated Security=True;TrustServerCertificate=True;");
-                masterConnection.Open();
-                using (var cmd = new SqlCommand(createDbSql, masterConnection))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-                masterConnection.Close();
-
-                connection.ChangeDatabase("StockAnalysisDB");
-
-                // 创建表
-                string createFavoritesTable = @"
-                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Favorites]') AND type in (N'U'))
-                    CREATE TABLE [dbo].[Favorites] (
-                        [Id] INT IDENTITY(1,1) PRIMARY KEY,
-                        [StockCode] NVARCHAR(50) NOT NULL,
-                        [StockName] NVARCHAR(200) NOT NULL,
-                        [CreatedDate] DATETIME NOT NULL DEFAULT GETDATE(),
-                        UNIQUE([StockCode])
-                    );
-                ";
-
-                string createRecentStocksTable = @"
-                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[RecentStocks]') AND type in (N'U'))
-                    CREATE TABLE [dbo].[RecentStocks] (
-                        [Id] INT IDENTITY(1,1) PRIMARY KEY,
-                        [StockCode] NVARCHAR(50) NOT NULL,
-                        [StockName] NVARCHAR(200) NOT NULL,
-                        [QueryDate] DATETIME NOT NULL DEFAULT GETDATE()
-                    );
-                ";
-
-                string createStockDataTable = @"
-                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[StockData]') AND type in (N'U'))
-                    CREATE TABLE [dbo].[StockData] (
-                        [Id] INT IDENTITY(1,1) PRIMARY KEY,
-                        [StockCode] NVARCHAR(50) NOT NULL,
-                        [StockName] NVARCHAR(200) NOT NULL,
-                        [Price] DECIMAL(18,2) NOT NULL,
-                        [ChangePercent] DECIMAL(18,2) NOT NULL,
-                        [Volume] BIGINT NOT NULL,
-                        [OpenPrice] DECIMAL(18,2) NOT NULL,
-                        [HighPrice] DECIMAL(18,2) NOT NULL,
-                        [LowPrice] DECIMAL(18,2) NOT NULL,
-                        [ClosePrice] DECIMAL(18,2) NOT NULL,
-                        [UpdateTime] DATETIME NOT NULL DEFAULT GETDATE()
-                    );
-                ";
-
-                using (var cmd = new SqlCommand(createFavoritesTable, connection))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                using (var cmd = new SqlCommand(createRecentStocksTable, connection))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                using (var cmd = new SqlCommand(createStockDataTable, connection))
-                {
-                    cmd.ExecuteNonQuery();
-                }
+                sqlCon.Open();
+                return true;
+            }
+            catch (SqlException ex)
+            {
+                // MessageBox.Show($"数据库连接失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show( "内部错误，数据库连接失败", "提示",MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"数据库初始化失败: {ex.Message}");
-                // 如果数据库连接失败，应用程序仍然可以运行（使用内存存储）
+                MessageBox.Show("内部错误，数据库连接失败", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
             }
         }
+
 
         public void SaveFavoriteStock(string code, string name)
         {
@@ -130,6 +69,32 @@ namespace StockAnalysisSystem.Data
                 System.Diagnostics.Debug.WriteLine($"保存收藏股票失败: {ex.Message}");
             }
         }
+        public bool InsertUser(string name, string pwd)
+        {
+            string sql = "INSERT INTO Student (Name, Age, Major) VALUES (@Name, @Age, @Major)";
+
+            try
+            {
+
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
+                {
+
+
+                    int result = command.ExecuteNonQuery();
+
+                    MessageBox.Show("数据插入成功");
+                    return result > 0;
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"插入记录失败：{ex.Message}");
+                return false;
+            }
+        }
+
 
         public void SaveRecentStock(string code, string name)
         {

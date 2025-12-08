@@ -194,6 +194,7 @@ namespace StockAnalysisSystem
                 ? System.Windows.Media.Brushes.Red
                 : System.Windows.Media.Brushes.Green;
             txtVolume.Text = stock.Volume.ToString("N0");
+            txtNewDate.Text = $"{stock.NewDate.ToString("yyyy/MM/dd")}";
         }
 
         private void UpdateChart(StockData stock, int days)

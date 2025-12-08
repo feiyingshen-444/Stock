@@ -55,8 +55,9 @@ namespace StockAnalysisSystem.Services
                 // 实际实现中应该调用真实API获取历史数据
                 // 这里提供模拟数据
                 StockData historicalData = null;
-                historicalData = await GetHistoricalStockDataAsync(stockCode, days);
-                historicalData = await GetRealStockDataAsync(stockCode,historicalData);
+                historicalData = await GetRealStockDataAsync(stockCode);
+                historicalData = await GetHistoricalStockDataAsync(historicalData, stockCode, days);
+                
                 return historicalData;
             }
             catch (Exception ex)
@@ -70,7 +71,7 @@ namespace StockAnalysisSystem.Services
 
 
         // 真实API调用示例（需要根据实际API文档调整）
-        private async Task<StockData> GetRealStockDataAsync(string stockCode , StockData st)
+        private async Task<StockData> GetRealStockDataAsync(string stockCode )
         {
             try
             {
@@ -85,20 +86,24 @@ namespace StockAnalysisSystem.Services
                     var quote = json["Global Quote"];
                     if (quote != null)
                     {
-
-                        st.Code = stockCode;
-                        st.Name = quote["01. symbol"]?.ToString() ?? stockCode;
-                        st.CurrentPrice = double.Parse(quote["05. price"]?.ToString() ?? "0");
-                        st.ChangePercent = double.Parse(quote["10. change percent"]?.ToString()?.Replace("%", "") ?? "0");
-                            //volume = long.parse(quote["06. volume"]?.tostring() ?? "0"),
-                            //open = double.parse(quote["02. open"]?.tostring() ?? "0"),
-                            //high = double.parse(quote["03. high"]?.tostring() ?? "0"),
-                            //low = double.parse(quote["04. low"]?.tostring() ?? "0"),
-                            //close = double.parse(quote["05. price"]?.tostring() ?? "0"),
-                        st.UpdateTime = DateTime.Now;
-                        
+                        StockData s = new StockData
+                        {
+                            Code = stockCode,
+                            Name = quote["01. symbol"]?.ToString() ?? stockCode,
+                            CurrentPrice = double.Parse(quote["05. price"]?.ToString() ?? "0"),
+                            ChangePercent = double.Parse(quote["10. change percent"]?.ToString()?.Replace("%", "") ?? "0"),
+                            Volume = long.Parse(quote["06. volume"]?.ToString() ?? "0"),
+                            Open = double.Parse(quote["02. open"]?.ToString() ?? "0"),
+                            High = double.Parse(quote["03. high"]?.ToString() ?? "0"),
+                            Low = double.Parse(quote["04. low"]?.ToString() ?? "0"),
+                            Close = double.Parse(quote["05. price"]?.ToString() ?? "0"),
+                            NewDate = DateTime.TryParse(quote["07. latest trading day"]?.ToString(), out DateTime tradeDate) ? tradeDate: DateTime.MinValue,
+                            UpdateTime = DateTime.Now,
+                            HistoricalData = new List<HistoricalData>()
+                        };
+                        return s;
                     }
-                    return st;
+                    
                 }
             }
             catch (Exception ex)
@@ -163,13 +168,13 @@ namespace StockAnalysisSystem.Services
         //        return new List<HistoricalData>();
         //    }
         //}
-        private async Task<StockData> GetHistoricalStockDataAsync(string stockCode, int days)
+        private async Task<StockData> GetHistoricalStockDataAsync(StockData st,string stockCode, int days)
         {
-            var stockData = new StockData
-            {
-                Code = stockCode,
-                HistoricalData = new List<HistoricalData>()
-            };
+            //var stockdata = new stockdata
+            //{
+            //    code = stockcode,
+            //    historicaldata = new list<historicaldata>()
+            //};
 
             try
             {
@@ -207,36 +212,39 @@ namespace StockAnalysisSystem.Services
                             Volume = long.Parse(data["5. volume"]?.ToString())
                         };
 
-                        stockData.HistoricalData.Add(record);
+                        st.HistoricalData.Add(record);
                         count++;
                     }
 
-                    // 时间升序排列
-                    stockData.HistoricalData = stockData.HistoricalData
-                        .OrderBy(d => d.Date)
-                        .ToList();
+                    //    // 时间升序排列
+                    //    stockData.HistoricalData = stockData.HistoricalData
+                    //        .OrderBy(d => d.Date)
+                    //        .ToList();
 
-                    // 取最新一天数据填充 StockData 的其他字段
-                    var latest = stockData.HistoricalData.LastOrDefault();
-                    if (latest != null)
-                    {
-                        stockData.Open = latest.Open;
-                        stockData.High = latest.High;
-                        stockData.Low = latest.Low;
-                        stockData.Close = latest.Close;
-                        stockData.CurrentPrice = latest.Close;
-                        stockData.Volume = latest.Volume;
-                        stockData.UpdateTime = latest.Date;
-                    }
-                    stockData.Name = stockCode;
+                    //    // 取最新一天数据填充 StockData 的其他字段
+                    //    var latest = stockData.HistoricalData.LastOrDefault();
+                    //    if (latest != null)
+                    //    {
+                    //        stockData.Open = latest.Open;
+                    //        stockData.High = latest.High;
+                    //        stockData.Low = latest.Low;
+                    //        stockData.Close = latest.Close;
+                    //        stockData.CurrentPrice = latest.Close;
+                    //        stockData.Volume = latest.Volume;
+                    //        stockData.UpdateTime = latest.Date;
+                    //    }
+                    //    stockData.Name = stockCode;
+                    //}
+
+                   
                 }
-
-                return stockData;
+                return st;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Alpha Vantage 历史数据 API 调用失败: {ex.Message}");
-                return stockData; // 返回空数据结构
+                st = new StockData();
+                return st; // 返回空数据结构
             }
         }
 
