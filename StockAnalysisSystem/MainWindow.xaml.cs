@@ -122,7 +122,7 @@ namespace StockAnalysisSystem
                 // 取时间范围
                 int days = GetSelectedDays();
                 // ① 先拿全部数据（服务端只支持单参数时也能跑）
-                StockData? data = await _apiService.GetStockDataAsync(code);
+                StockData? data = await _apiService.GetDataAsync(code,days);
                 if (data == null)
                 {
                     MessageBox.Show("未找到股票信息", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
