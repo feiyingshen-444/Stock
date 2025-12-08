@@ -1,0 +1,10 @@
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem.csproj.AssemblyReference.cache
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\MainWindow.baml
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\MainWindow.g.cs
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\App.g.cs
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem_MarkupCompile.cache
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem.g.resources
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem.GeneratedMSBuildEditorConfig.editorconfig
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem.AssemblyInfoInputs.cache
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem.AssemblyInfo.cs
+D:\StockAnalysisSystem\obj\Debug\net6.0-windows\StockAnalysisSystem.csproj.CoreCompileInputs.cache
