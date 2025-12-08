@@ -104,13 +104,13 @@
                         Click="BtnAddToFavorites_Click" 
                         Margin="0,0,16,0"
                         Style="{StaticResource ModernButtonStyle}"/>
-
                 <Border Background="White" 
                         CornerRadius="4" 
                         BorderBrush="#B3E5FC" 
                         BorderThickness="1"
                         Padding="0"
                         Height="32"
+                        Margin="0,0,400,0"
                         VerticalAlignment="Center">
                     <ComboBox x:Name="cmbTimeRange" 
                               Width="120" 
@@ -126,6 +126,13 @@
                         <ComboBoxItem Content="1年"/>
                     </ComboBox>
                 </Border>
+                
+                <Button x:Name="btnRegister" 
+                        Content="登入" 
+                        Width="76" 
+                        Height="32"
+                        Click="BtnRegister_Click"
+                        Style="{StaticResource ModernButtonStyle}"/>
             </StackPanel>
         </Border>
 

@@ -1807,11 +1807,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+      "projectUniqueName": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
       "projectName": "StockAnalysisSystem",
-      "projectPath": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+      "projectPath": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
       "packagesPath": "C:\\Users\\11467\\.nuget\\packages\\",
-      "outputPath": "D:\\StockAnalysisSystem\\obj\\",
+      "outputPath": "D:\\Stock\\StockAnalysisSystem\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

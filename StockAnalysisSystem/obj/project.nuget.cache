@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "JTebExmg8fQ=",
+  "dgSpecHash": "xVGrYv78MXA=",
   "success": true,
-  "projectFilePath": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+  "projectFilePath": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\11467\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\11467\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",
@@ -47,9 +47,9 @@
       "code": "NU1701",
       "level": "Warning",
       "message": "已使用“.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1”而不是项目目标框架“net8.0-windows7.0”还原包“LiveCharts 0.9.7”。此包可能与项目不完全兼容。",
-      "projectPath": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+      "projectPath": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
       "warningLevel": 1,
-      "filePath": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+      "filePath": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
       "libraryId": "LiveCharts",
       "targetGraphs": [
         "net8.0-windows7.0"
@@ -59,9 +59,9 @@
       "code": "NU1701",
       "level": "Warning",
       "message": "已使用“.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1”而不是项目目标框架“net8.0-windows7.0”还原包“LiveCharts.Wpf 0.9.7”。此包可能与项目不完全兼容。",
-      "projectPath": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+      "projectPath": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
       "warningLevel": 1,
-      "filePath": "D:\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
+      "filePath": "D:\\Stock\\StockAnalysisSystem\\StockAnalysisSystem.csproj",
       "libraryId": "LiveCharts.Wpf",
       "targetGraphs": [
         "net8.0-windows7.0"

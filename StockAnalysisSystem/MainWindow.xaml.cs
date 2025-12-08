@@ -86,7 +86,19 @@ namespace StockAnalysisSystem
             _favorites.Add(item);
             _repository.SaveFavoriteStock(item.Code, item.Name);
         }
+        private void BtnRegister_Click(object sender, RoutedEventArgs e) {
+          //  MessageBox.Show("测试", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            LoginWindow loginWindow = new LoginWindow();
 
+            //// 设置窗口属性（可选）
+            //newWindow.Title = "股票详情";
+            //newWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            //newWindow.ResizeMode = ResizeMode.CanResize;
+
+            // 打开窗口（非模态）
+            loginWindow.Show();
+        }
+        
         private async void LstFavorites_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (lstFavorites.SelectedItem is StockItem s)
@@ -250,5 +262,8 @@ namespace StockAnalysisSystem
             while (_recentStocks.Count > 20)
                 _recentStocks.RemoveAt(_recentStocks.Count - 1);
         }
+
+
+        
     }
 }
