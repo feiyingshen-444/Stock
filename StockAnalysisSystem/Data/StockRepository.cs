@@ -19,7 +19,7 @@ namespace StockAnalysisSystem.Data
         {
             // 从配置文件读取连接字符串，这里使用默认值
             // _connectionString = "Server=localhost;Database=StockAnalysisDB;User Id=sa;Password=336699;TrustServerCertificate=True;";
-
+            
             sqlCon = new SqlConnection(_connectionString);
             TestConnection();   //连接数据库
         }
@@ -42,8 +42,52 @@ namespace StockAnalysisSystem.Data
                 return false;
             }
         }
+        public bool SelectedUser(String username, String password)
+        {
+            string sql = "select*  from Users where username=@Name and  password=@Password ";
+            try
+            {
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
+                {
+                    command.Parameters.AddWithValue("@Name", username);
+                    command.Parameters.AddWithValue("@Password", password);
+                    object scalar = command.ExecuteScalar();
+                    int count = 0;
+                    if (scalar != null && int.TryParse(scalar.ToString(), out count))
+                    {
+                        return count > 0;
+                    }
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"登入失败：{ex.Message}");
+                return false;
+            }
+            
+        }
+        public bool InsertUser(string username, string password)
+        {
+            string sql = "INSERT INTO Users (username , password) VALUES (@Name , @Password)";
 
-
+            try
+            {
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
+                {
+                    command.Parameters.AddWithValue("@Name", username);
+                    command.Parameters.AddWithValue("@Password", password);
+                    int result = command.ExecuteNonQuery();
+                    return result > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"注册失败：{ex.Message}");
+                return false;
+            }
+        }
+     
         public void SaveFavoriteStock(string code, string name)
         {
             try
@@ -69,31 +113,7 @@ namespace StockAnalysisSystem.Data
                 System.Diagnostics.Debug.WriteLine($"保存收藏股票失败: {ex.Message}");
             }
         }
-        public bool InsertUser(string name, string pwd)
-        {
-            string sql = "INSERT INTO Student (Name, Age, Major) VALUES (@Name, @Age, @Major)";
 
-            try
-            {
-
-                using (SqlCommand command = new SqlCommand(sql, sqlCon))
-                {
-
-
-                    int result = command.ExecuteNonQuery();
-
-                    MessageBox.Show("数据插入成功");
-                    return result > 0;
-
-                }
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"插入记录失败：{ex.Message}");
-                return false;
-            }
-        }
 
 
         public void SaveRecentStock(string code, string name)

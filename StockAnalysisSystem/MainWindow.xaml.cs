@@ -87,7 +87,7 @@ namespace StockAnalysisSystem
             _repository.SaveFavoriteStock(item.Code, item.Name);
         }
         private void BtnRegister_Click(object sender, RoutedEventArgs e) {
-          //  MessageBox.Show("测试", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            //  MessageBox.Show("测试", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             LoginWindow loginWindow = new LoginWindow();
 
             //// 设置窗口属性（可选）
@@ -95,8 +95,15 @@ namespace StockAnalysisSystem
             //newWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             //newWindow.ResizeMode = ResizeMode.CanResize;
 
-            // 打开窗口（非模态）
-            loginWindow.Show();
+            // 设置窗口关闭后的回调
+            bool? result = loginWindow.ShowDialog();  // 阻塞直到窗口关闭
+
+            if (result == true && loginWindow._isLoggedIn)
+            {
+                btnRegister.Content = "Hi, " + loginWindow.LoginUser;
+                Application.Current.Properties["CurrentUser"] = loginWindow.LoginUser;
+            }
+
         }
         
         private async void LstFavorites_SelectionChanged(object sender, SelectionChangedEventArgs e)
