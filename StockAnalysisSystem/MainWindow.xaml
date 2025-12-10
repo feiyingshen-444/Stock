@@ -322,9 +322,16 @@
                             CornerRadius="8"
                             Padding="10">
                         <lvc:CartesianChart x:Name="PriceChart"
-                                            LegendLocation="Right"
-                                            Background="Transparent"/>
+                                            Background="Transparent"
+                                            Zoom="X"
+                                            Pan="X"
+                                            DisableAnimations="True"
+                                            Hoverable="False"
+                                            DataTooltip="{x:Null}" 
+                                            Loaded="PriceChart_Loaded"/>
                     </Border>
+                   
+              
                 </Grid>
             </Grid>
         </Grid>

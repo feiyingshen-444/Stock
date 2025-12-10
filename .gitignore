@@ -1,2 +1,6 @@
 .vs/
 .vscode/
+*.mdf
+*.ldf
+*.bak
+*.sqlite

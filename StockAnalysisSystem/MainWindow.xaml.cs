@@ -11,6 +11,9 @@ using StockAnalysisSystem.Models;
 using StockAnalysisSystem.Services;
 using StockAnalysisSystem.Data;
 
+
+
+
 namespace StockAnalysisSystem
 {
     public partial class MainWindow : Window
@@ -210,7 +213,9 @@ namespace StockAnalysisSystem
             if (stock.HistoricalData == null || stock.HistoricalData.Count == 0)
                 return;
 
-            var values = new ChartValues<double>(stock.HistoricalData.Select(h => h.Close));
+            var historical = stock.HistoricalData.OrderBy(h => h.Date).ToList(); // 确保有序
+
+            var values = new ChartValues<double>(historical.Select(h => h.Close));
             _seriesCollection.Add(new LineSeries
             {
                 Title = "价格",
@@ -219,28 +224,22 @@ namespace StockAnalysisSystem
                 LineSmoothness = 0
             });
 
-            // 根据天数决定标签格式与密度
-            string[] labels = days switch
+            // ✅ 生成与数据点等长的标签
+            string[] labels = historical.Select(h => days <= 1 ? h.Date.ToString("MM/dd HH:mm") : h.Date.ToString("MM/dd")).ToArray();
+
+            // ✅ 动态步长，最多显示12个标签
+            int step = labels.Length <= 12 ? 1 : (int)Math.Ceiling((double)labels.Length / 12);
+
+            var axis = new Axis
             {
-                <= 1 => stock.HistoricalData.Select(h => h.Date.ToString("MM/dd HH:mm")).ToArray(),
-                <= 7 => stock.HistoricalData.Select(h => h.Date.ToString("MM/dd")).ToArray(),
-                <= 30 => stock.HistoricalData.Select(h => h.Date.ToString("MM/dd")).ToArray(),
-                _ => ReduceLabels(stock.HistoricalData.Select(h => h.Date.ToString("yyyy/MM")).ToList(), 12)
+                Labels = labels, // ⚠️ 关键：长度必须 == values.Count
+                Separator = new LiveCharts.Wpf.Separator { Step = step },
+                LabelsRotation = -45,
+                FontSize = 11
             };
 
-            if (PriceChart.AxisX.Count == 0)
-            {
-                PriceChart.AxisX.Add(new Axis
-                {
-                    Labels = labels,
-                    Separator = new LiveCharts.Wpf.Separator { Step = labels.Length > 20 ? labels.Length / 10 : 1 }
-                });
-            }
-            else
-            {
-                PriceChart.AxisX[0].Labels = labels;
-                PriceChart.AxisX[0].Separator.Step = labels.Length > 20 ? labels.Length / 10 : 1;
-            }
+            PriceChart.AxisX.Clear();
+            PriceChart.AxisX.Add(axis);
         }
 
         private static string[] ReduceLabels(List<string> src, int max)
@@ -271,7 +270,9 @@ namespace StockAnalysisSystem
                 _recentStocks.RemoveAt(_recentStocks.Count - 1);
         }
 
+        private void PriceChart_Loaded(object sender, RoutedEventArgs e)
+        {
 
-        
+        }
     }
 }

@@ -81,14 +81,14 @@
     <Grid Background="#F5F5F5">
 
         <!-- 顶部标题栏 -->
-        <Border  Background="#2196F3" Padding="20" Height="300" HorizontalAlignment="Right" Width="450">
+        <Border  Background="#2196F3" Padding="20" HorizontalAlignment="Center" Width="450" Margin="0,75,0,108">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                
+
             </StackPanel>
         </Border>
 
         <!-- 主内容区 -->
-        <Border Margin="50,40,50,40"
+        <Border Margin="50,24,50,57"
                 Background="White"
                 CornerRadius="8"
                 BorderBrush="#E0E0E0"
