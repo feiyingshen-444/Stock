@@ -191,9 +191,18 @@ namespace StockAnalysisSystem.Services
 
                     int count = 0;
 
+                    //var sorted = timeSeries.Children<JProperty>()
+                    //    .OrderByDescending(p => p.Name)
+                    //    .Take(Math.Min(days * 2, timeSeries.Children().Count()));
                     var sorted = timeSeries.Children<JProperty>()
-                        .OrderByDescending(p => p.Name)
-                        .Take(Math.Min(days * 2, timeSeries.Children().Count()));
+                        // 把属性名解析为 DateTime 再排序，防止按字符串排序出错
+                        .OrderByDescending(p =>
+                        {
+                            DateTime dt;
+                            // 如果解析失败则返回最小值，这样解析成功的会排在前面
+                            return DateTime.TryParse(p.Name, out dt) ? dt : DateTime.MinValue;
+                        })
+                        .Take(days); // 直接取需要的条数（包含周末）
 
                     foreach (var dateProperty in sorted)
                     {

@@ -1,9 +1,11 @@
+using LiveCharts;
 using StockAnalysisSystem.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 
 namespace StockAnalysisSystem.Data
@@ -87,87 +89,52 @@ namespace StockAnalysisSystem.Data
                 return false;
             }
         }
-     
-        public void SaveFavoriteStock(string code, string name)
+        public bool InsertFavoriteStock(string username, string stockname,string stockcode)
         {
+            string sql = "INSERT INTO FavoriteStock (favoritestockname , username,favoritestockcode) VALUES ( @Stockname,@Name ,@Stockcode)";
+
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-                connection.Open();
-                connection.ChangeDatabase("StockAnalysisDB");
-
-                string sql = @"
-                    IF EXISTS (SELECT * FROM Favorites WHERE StockCode = @Code)
-                        UPDATE Favorites SET StockName = @Name, CreatedDate = GETDATE() WHERE StockCode = @Code
-                    ELSE
-                        INSERT INTO Favorites (StockCode, StockName) VALUES (@Code, @Name);
-                ";
-
-                using var cmd = new SqlCommand(sql, connection);
-                cmd.Parameters.AddWithValue("@Code", code);
-                cmd.Parameters.AddWithValue("@Name", name);
-                cmd.ExecuteNonQuery();
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
+                {
+                    command.Parameters.AddWithValue("@Name", username);
+                    command.Parameters.AddWithValue("@Stockname", stockname);
+                    command.Parameters.AddWithValue("@Stockcode", stockcode);
+                    int result = command.ExecuteNonQuery();
+                    return result > 0;
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"保存收藏股票失败: {ex.Message}");
+                MessageBox.Show($"收藏失败：{ex.Message}");
+                return false;
             }
         }
 
-
-
-        public void SaveRecentStock(string code, string name)
-        {
-            try
-            {
-                using var connection = new SqlConnection(_connectionString);
-                connection.Open();
-                connection.ChangeDatabase("StockAnalysisDB");
-
-                string sql = @"
-                    INSERT INTO RecentStocks (StockCode, StockName) VALUES (@Code, @Name);
-                    
-                    -- 保持最近20条记录
-                    DELETE FROM RecentStocks 
-                    WHERE Id NOT IN (
-                        SELECT TOP 20 Id FROM RecentStocks ORDER BY QueryDate DESC
-                    );
-                ";
-
-                using var cmd = new SqlCommand(sql, connection);
-                cmd.Parameters.AddWithValue("@Code", code);
-                cmd.Parameters.AddWithValue("@Name", name);
-                cmd.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"保存最近查询失败: {ex.Message}");
-            }
-        }
-
-        public List<StockItem> GetFavoriteStocks()
+        public List<StockItem> GetFavoriteStocks(String username)
         {
             var favorites = new List<StockItem>();
 
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-                connection.Open();
-                connection.ChangeDatabase("StockAnalysisDB");
-
-                string sql = "SELECT StockCode, StockName FROM Favorites ORDER BY CreatedDate DESC";
-
-                using var cmd = new SqlCommand(sql, connection);
-                using var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
+                string sql = "SELECT favoritestockname, favoritestockcode FROM FavoriteStock WHERE username=@Name";
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
-                    favorites.Add(new StockItem
+                    command.Parameters.AddWithValue("@Name", username);
+
+                    using (var reader = command.ExecuteReader())
                     {
-                        Code = reader["StockCode"].ToString() ?? "",
-                        Name = reader["StockName"].ToString() ?? "",
-                        DisplayName = $"{reader["StockCode"]} - {reader["StockName"]}"
-                    });
+                        //  添加这个循环来读取数据
+                        while (reader.Read())
+                        {
+                            favorites.Add(new StockItem
+                            {
+                                Name = reader["favoritestockname"].ToString() ?? "",
+                                Code = reader["favoritestockcode"].ToString() ?? "",
+                                DisplayName = $"{reader["favoritestockcode"]} - {reader["favoritestockname"]}"
+                            });
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -177,6 +144,34 @@ namespace StockAnalysisSystem.Data
 
             return favorites;
         }
+        //public List<StockItem> GetFavoriteStocks(String username)
+        //{
+        //    var favorites = new List<StockItem>();
+
+        //    try
+        //    {
+           
+
+        //        string sql = "SELECT favoritestockname ,favoritestockcode FROM FavoriteStock Where username=@Name ";
+        //        using (SqlCommand command = new SqlCommand(sql, sqlCon))
+        //        {
+        //            command.Parameters.AddWithValue("@Name", username);
+
+
+        //            using var reader = command.ExecuteReader();
+        //        }
+            
+                
+
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine($"获取收藏列表失败: {ex.Message}");
+        //    }
+
+        //    return favorites;
+        //}
 
         public List<StockItem> GetRecentStocks()
         {

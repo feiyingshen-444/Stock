@@ -25,7 +25,8 @@ namespace StockAnalysisSystem
         private ObservableCollection<StockItem> _favorites;
         private ObservableCollection<StockItem> _recentStocks;
         private StockData? _currentStock;
-
+        public bool _isLoggedIn { get; private set; } = false;
+        public string LoginUser { get; private set; } = "";
         public MainWindow()
         {
             InitializeComponent();
@@ -42,6 +43,8 @@ namespace StockAnalysisSystem
             cmbTimeRange.SelectionChanged += CmbTimeRange_SelectionChanged;
 
             LoadFavorites();
+
+            
             LoadRecentStocks();
         }
 
@@ -72,13 +75,25 @@ namespace StockAnalysisSystem
                 MessageBox.Show("请先查询股票", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+            if (_isLoggedIn != true)
+            {
+                MessageBox.Show("请先登入", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
 
             var item = new StockItem
             {
                 Code = _currentStock.Code,
                 Name = _currentStock.Name,
+
+
+
                 DisplayName = $"{_currentStock.Code} - {_currentStock.Name}"
+
             };
+
+
 
             if (_favorites.Any(f => f.Code == item.Code))
             {
@@ -86,25 +101,34 @@ namespace StockAnalysisSystem
                 return;
             }
 
+            bool addflag = addflag = _repository.InsertFavoriteStock(LoginUser, _currentStock.Name,_currentStock.Code);
             _favorites.Add(item);
-            _repository.SaveFavoriteStock(item.Code, item.Name);
+            if (addflag)
+            {
+                MessageBox.Show("收藏成功", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+           
         }
         private void BtnRegister_Click(object sender, RoutedEventArgs e) {
             //  MessageBox.Show("测试", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             LoginWindow loginWindow = new LoginWindow();
 
-            //// 设置窗口属性（可选）
-            //newWindow.Title = "股票详情";
-            //newWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            //newWindow.ResizeMode = ResizeMode.CanResize;
+
 
             // 设置窗口关闭后的回调
             bool? result = loginWindow.ShowDialog();  // 阻塞直到窗口关闭
 
             if (result == true && loginWindow._isLoggedIn)
             {
-                btnRegister.Content = "Hi, " + loginWindow.LoginUser;
+
+                
                 Application.Current.Properties["CurrentUser"] = loginWindow.LoginUser;
+
+                Application.Current.Properties["CurrentLoggedIn"] = loginWindow._isLoggedIn;
+                _isLoggedIn= loginWindow._isLoggedIn;
+                LoginUser= loginWindow.LoginUser;
+                btnRegister.Content = "Hi, " + Application.Current.Properties["CurrentUser"];
+                LoadFavorites();
             }
 
         }
@@ -130,6 +154,7 @@ namespace StockAnalysisSystem
         /*----------------  核心逻辑  ----------------*/
         private async Task SearchStockAsync()
         {
+
             string code = txtStockCode.Text.Trim();
             if (string.IsNullOrEmpty(code))
             {
@@ -151,17 +176,18 @@ namespace StockAnalysisSystem
                     txtStatus.Text = "查询失败";
                     return;
                 }
+                
+            
 
-                // ② 本地过滤出最近 N 天
-                DateTime cut = DateTime.Today.AddDays(-days);
+                // ✅ 移除日期过滤，直接排序使用API返回的数据
                 data.HistoricalData = data.HistoricalData?
-                    .Where(h => h.Date >= cut)
                     .OrderBy(h => h.Date)
                     .ToList();
 
                 _currentStock = data;
                 DisplayStockInfo(_currentStock);
                 UpdateChart(_currentStock, days);
+
 
                 // 加入最近查询
                 var item = new StockItem
@@ -171,8 +197,8 @@ namespace StockAnalysisSystem
                     DisplayName = $"{_currentStock.Code} - {_currentStock.Name}"
                 };
                 AddToRecent(item);
-                _repository.SaveRecentStock(item.Code, item.Name);
 
+              //  System.Diagnostics.Debug.WriteLine($"API返回数据点数: {data.HistoricalData?.Count ?? 0}");
                 txtStatus.Text = "查询成功";
             }
             catch (Exception ex)
@@ -198,7 +224,7 @@ namespace StockAnalysisSystem
         private void DisplayStockInfo(StockData stock)
         {
             txtStockName.Text = stock.Name;
-            txtCurrentPrice.Text = $"¥{stock.CurrentPrice:F2}";
+            txtCurrentPrice.Text = $"${stock.CurrentPrice:F2}";
             txtChangePercent.Text = $"{stock.ChangePercent:F2}%";
             txtChangePercent.Foreground = stock.ChangePercent >= 0
                 ? System.Windows.Media.Brushes.Red
@@ -207,52 +233,154 @@ namespace StockAnalysisSystem
             txtNewDate.Text = $"{stock.NewDate.ToString("yyyy/MM/dd")}";
         }
 
+        //private void UpdateChart(StockData stock, int days)
+        //{
+        //    _seriesCollection.Clear();
+        //    if (stock.HistoricalData == null || stock.HistoricalData.Count == 0)
+        //        return;
+
+        //    var historical = stock.HistoricalData.OrderBy(h => h.Date).ToList(); // 确保有序
+
+        //    var values = new ChartValues<double>(historical.Select(h => h.Close));
+        //    _seriesCollection.Add(new LineSeries
+        //    {
+        //        Title = "价格",
+        //        Values = values,
+        //        PointGeometry = null,
+        //        LineSmoothness = 0
+        //    });
+
+        //    // ✅ 生成与数据点等长的标签
+        //    string[] labels = historical.Select(h => days <= 1 ? h.Date.ToString("MM/dd HH:mm") : h.Date.ToString("MM/dd")).ToArray();
+
+        //    // ✅ 动态步长，最多显示12个标签
+        //    int step = labels.Length <= 12 ? 1 : (int)Math.Ceiling((double)labels.Length / 12);
+
+        //    var axis = new Axis
+        //    {
+        //        Labels = labels, // ⚠️ 关键：长度必须 == values.Count
+        //        Separator = new LiveCharts.Wpf.Separator { Step = step },
+        //        LabelsRotation = -45,
+        //        FontSize = 11
+        //    };
+
+        //    PriceChart.AxisX.Clear();
+        //    PriceChart.AxisX.Add(axis);
+        //}
         private void UpdateChart(StockData stock, int days)
         {
+            // ✅ 1天时不显示图表，保持空白
+            if (days <= 1)
+            {
+                return;
+            }
             _seriesCollection.Clear();
             if (stock.HistoricalData == null || stock.HistoricalData.Count == 0)
                 return;
 
-            var historical = stock.HistoricalData.OrderBy(h => h.Date).ToList(); // 确保有序
-
+            var historical = stock.HistoricalData.OrderBy(h => h.Date).ToList();
+            
             var values = new ChartValues<double>(historical.Select(h => h.Close));
             _seriesCollection.Add(new LineSeries
             {
                 Title = "价格",
                 Values = values,
-                PointGeometry = null,
-                LineSmoothness = 0
+                PointGeometry = null,  // ✅ 显示数据点
+                PointGeometrySize = 8,
+               
+                LineSmoothness = 0,
+
+
+                LabelPoint = point =>
+                {
+                    // ✅ 自定义 Tooltip 显示内容
+                    int index = (int)point.X;
+                    if (index >= 0 && index < historical.Count)
+                    {
+                        var data = historical[index];
+                        return $"{data.Date:yyyy/MM/dd}\n价格: ¥{data.Close:F2}";
+                    }
+                    return point.Y.ToString("F2");
+                }
             });
-
-            // ✅ 生成与数据点等长的标签
-            string[] labels = historical.Select(h => days <= 1 ? h.Date.ToString("MM/dd HH:mm") : h.Date.ToString("MM/dd")).ToArray();
-
-            // ✅ 动态步长，最多显示12个标签
-            int step = labels.Length <= 12 ? 1 : (int)Math.Ceiling((double)labels.Length / 12);
+            // ✅ 使用 LabelFormatter 确保标签与数据点索引对应
+            int count = historical.Count;
+            int step = Math.Max(1, count / 15);  // 大约显示10个标签
 
             var axis = new Axis
             {
-                Labels = labels, // ⚠️ 关键：长度必须 == values.Count
+                LabelFormatter = value =>
+                {
+                    int index = (int)value;
+                    if (index >= 0 && index < historical.Count)
+                    {
+                        return days <= 1
+                            ? historical[index].Date.ToString("HH:mm")
+                            : historical[index].Date.ToString("MM/dd");
+                    }
+                    return "";
+                },
                 Separator = new LiveCharts.Wpf.Separator { Step = step },
                 LabelsRotation = -45,
-                FontSize = 11
+                FontSize = 11,
+                MinValue = 0,
+                MaxValue = count - 1
             };
 
             PriceChart.AxisX.Clear();
             PriceChart.AxisX.Add(axis);
+            //// ✅ 修复：创建稀疏标签数组，只在特定位置显示日期，其余位置为空
+            //int maxLabels = 10;  // 最多显示10个标签
+            //int count = historical.Count;
+            //int step = count <= maxLabels ? 1 : (int)Math.Ceiling((double)count / maxLabels);
+
+            //// 生成标签数组，大部分为空字符串，只在间隔位置显示日期
+            //string[] labels = new string[count];
+            //for (int i = 0; i < count; i++)
+            //{
+            //    if (i % step == 0 || i == count - 1)  // 间隔显示 + 最后一个点
+            //    {
+            //        labels[i] = days <= 1
+            //            ? historical[i].Date.ToString("HH:mm")
+            //            : historical[i].Date.ToString("MM/dd");
+            //    }
+            //    else
+            //    {
+            //        labels[i] = "";  // 空字符串，不显示
+            //    }
+            //}
+
+            //var axis = new Axis
+            //{
+            //    Labels = labels,
+            //    Separator = new LiveCharts.Wpf.Separator { Step = 1 },  // ✅ Step设为1，由标签数组控制显示
+            //    LabelsRotation = -45,
+            //    FontSize = 11
+            //};
+
+            //PriceChart.AxisX.Clear();
+            //PriceChart.AxisX.Add(axis);
         }
 
-        private static string[] ReduceLabels(List<string> src, int max)
-        {
-            int step = Math.Max(1, src.Count / max);
-            return src.Where((_, i) => i % step == 0).ToArray();
-        }
+
 
         /*----------------  数据加载  ----------------*/
+        //private void LoadFavorites()
+        //{
+        //    foreach (var f in _repository.GetFavoriteStocks(LoginUser))
+        //    _favorites.Add(f);
+
+        //}
         private void LoadFavorites()
         {
-            foreach (var f in _repository.GetFavoriteStocks())
+            // 先清空现有收藏列表
+            _favorites.Clear();
+
+            // 重新加载当前用户的收藏
+            foreach (var f in _repository.GetFavoriteStocks(LoginUser))
+            {
                 _favorites.Add(f);
+            }
         }
 
         private void LoadRecentStocks()
