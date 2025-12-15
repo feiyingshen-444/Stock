@@ -268,13 +268,24 @@ namespace StockAnalysisSystem
         //    PriceChart.AxisX.Add(axis);
         //}
         private void UpdateChart(StockData stock, int days)
+
         {
-            // ✅ 1天时不显示图表，保持空白
+            _seriesCollection.Clear();  
+            PriceChart.AxisX.Clear();  
+            PriceChart.AxisY.Clear();
             if (days <= 1)
             {
                 return;
             }
-            _seriesCollection.Clear();
+         
+            //调试
+            System.Diagnostics.Debug.WriteLine($"=== UpdateChart ===");
+            System.Diagnostics.Debug.WriteLine($"days: {days}");
+            System.Diagnostics.Debug.WriteLine($"HistoricalData is null: {stock.HistoricalData == null}");
+            System.Diagnostics.Debug.WriteLine($"HistoricalData count: {stock.HistoricalData?.Count ?? 0}");
+
+
+
             if (stock.HistoricalData == null || stock.HistoricalData.Count == 0)
                 return;
 

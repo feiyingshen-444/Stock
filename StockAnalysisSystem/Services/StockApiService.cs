@@ -34,7 +34,7 @@ namespace StockAnalysisSystem.Services
         //        // 这里提供一个模拟的实现，实际使用时需要根据API文档调整
 
         //        // 方法1：使用Alpha Vantage API
-        //        // string url = $"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stockCode}&apikey={_apiKey}";
+        //        // string url = $"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=INTC&apikey=EETLSYNXXZ61M6JL";
 
         //        // 方法2：使用中国股票API（如聚合数据、新浪财经等）
         //        // 这里使用模拟数据，实际项目中需要接入真实API
@@ -56,8 +56,14 @@ namespace StockAnalysisSystem.Services
                 // 这里提供模拟数据
                 StockData historicalData = null;
                 historicalData = await GetRealStockDataAsync(stockCode);
-                historicalData = await GetHistoricalStockDataAsync(historicalData, stockCode, days);
                 
+                if (days != 1)
+                {
+                    await Task.Delay(1500);
+                    historicalData = await GetHistoricalStockDataAsync(historicalData, stockCode, days);
+
+                }
+
                 return historicalData;
             }
             catch (Exception ex)
@@ -80,7 +86,34 @@ namespace StockAnalysisSystem.Services
                 
                 var response = await _httpClient.GetStringAsync(url);
                 var json = JObject.Parse(response);
-                
+                // ✅ 打印请求的 URL
+                System.Diagnostics.Debug.WriteLine($"=== 请求 URL ===");
+                System.Diagnostics.Debug.WriteLine(url);
+
+          
+
+                // ✅ 打印原始返回内容（只打印前500字符，避免太长）
+                System.Diagnostics.Debug.WriteLine($"=== API 原始返回 ===");
+                System.Diagnostics.Debug.WriteLine(response.Length > 20 ? response.Substring(0, 20) : response);
+
+             
+
+                // ✅ 打印 JSON 的 key
+                System.Diagnostics.Debug.WriteLine($"=== JSON Keys ===");
+                foreach (var key in json.Properties().Select(p => p.Name))
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {key}");
+                }
+                if (json["Note"] != null || json["Information"] != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ API 调用频率超限，请稍后再试");
+                    StockData s = new StockData();
+                    return  s;  // 返回没有历史数据的对象
+                }
+
+
+
+
                 if (json["Global Quote"] != null)
                 {
                     var quote = json["Global Quote"];
@@ -175,17 +208,36 @@ namespace StockAnalysisSystem.Services
             //    code = stockcode,
             //    historicaldata = new list<historicaldata>()
             //};
-
+            
             try
             {
                 // Alpha Vantage 接口
-                string url =
-                    $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={stockCode}&outputsize=compact&apikey={_apiKey}";
+                string url =  $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={stockCode}&outputsize=compact&apikey={_apiKey}";
 
                 var response = await _httpClient.GetStringAsync(url);
                 var json = JObject.Parse(response);
 
-                if (json["Time Series (Daily)"] != null)
+           
+
+               
+
+                // ✅ 打印原始返回内容（只打印前500字符，避免太长）
+                System.Diagnostics.Debug.WriteLine($"=== API 原始返回 ===");
+                System.Diagnostics.Debug.WriteLine(response.Length > 15 ? response.Substring(0, 15) : response);
+                // ✅ 打印 JSON 的 key
+                System.Diagnostics.Debug.WriteLine($"=== JSON Keys ===");
+                foreach (var key in json.Properties().Select(p => p.Name))
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {key}");
+                }
+                if (json["Note"] != null || json["Information"] != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("⚠️ API 调用频率超限，请稍后再试（历史）");
+                    StockData s = new StockData();
+                    return s;  // 返回没有历史数据的对象
+
+
+                    if (json["Time Series (Daily)"] != null)
                 {
                     var timeSeries = json["Time Series (Daily)"];
 
@@ -220,7 +272,7 @@ namespace StockAnalysisSystem.Services
                             Close = double.Parse(data["4. close"]?.ToString()),
                             Volume = long.Parse(data["5. volume"]?.ToString())
                         };
-
+                      
                         st.HistoricalData.Add(record);
                         count++;
                     }
