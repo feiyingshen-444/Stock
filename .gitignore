@@ -4,3 +4,5 @@
 *.ldf
 *.bak
 *.sqlite
+StockAnalysisSystem/Sql/StockAnalysisDB.mdf
+StockAnalysisSystem/Sql/StockAnalysisDB_log.ldf
