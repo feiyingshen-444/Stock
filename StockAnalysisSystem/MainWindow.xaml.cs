@@ -473,5 +473,101 @@ namespace StockAnalysisSystem
         {
 
         }
+
+        // 🔴 在这里添加右键菜单的事件处理方法
+
+        private void MenuRemoveFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstFavorites.SelectedItem is StockItem selectedStock)
+            {
+                // 确认对话框
+                var result = MessageBox.Show(
+                    $"确定要取消收藏 {selectedStock.Name}({selectedStock.Code}) 吗？",
+                    "确认取消收藏",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // 调用 Repository 删除收藏
+                    bool success = _repository.RemoveFavoriteStock(
+                        LoginUser,  // 当前登录用户ID
+                        selectedStock.Code);
+
+                    if (success)
+                    {
+                        // 从界面列表中移除
+                        _favorites.Remove(selectedStock);
+                        MessageBox.Show("已取消收藏", "成功",
+                                      MessageBoxButton.OK,
+                                      MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("取消收藏失败", "错误",
+                                      MessageBoxButton.OK,
+                                      MessageBoxImage.Error);
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("请先选择要取消收藏的股票", "提示");
+            }
+        }
+
+        private void MenuViewDetail_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstFavorites.SelectedItem is StockItem selectedStock)
+            {
+                // 打开股票详情窗口或显示详情
+                MessageBox.Show($"股票代码: {selectedStock.Code}\n" +
+                               $"股票名称: {selectedStock.Name}",
+                               "股票详情");
+            }
+        }
+
+        private void MenuRefreshData_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstFavorites.SelectedItem is StockItem selectedStock)
+            {
+                // 刷新选中的收藏股票数据
+                txtStockCode.Text = selectedStock.Code;
+                SearchStockAsync();
+            }
+        }
+
+        // 最近查询的右键菜单方法（如果需要）
+        private void MenuRemoveRecent_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstRecent.SelectedItem is StockItem selectedStock)
+            {
+                _recentStocks.Remove(selectedStock);
+                MessageBox.Show("已从最近查询中移除", "成功");
+            }
+        }
+
+        private void MenuAddToFavorites_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstRecent.SelectedItem is StockItem selectedStock)
+            {
+                if (_favorites.Any(f => f.Code == selectedStock.Code))
+                {
+                    MessageBox.Show("该股票已在收藏列表中", "提示");
+                    return;
+                }
+
+                bool addflag = _repository.InsertFavoriteStock(
+                    LoginUser, selectedStock.Name, selectedStock.Code);
+
+                if (addflag)
+                {
+                    _favorites.Add(selectedStock);
+                    MessageBox.Show("收藏成功", "提示");
+                }
+            }
+        }
+
+
     }
 }

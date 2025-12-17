@@ -124,7 +124,7 @@ namespace StockAnalysisSystem.Services
                             Code = stockCode,
                             Name = quote["01. symbol"]?.ToString() ?? stockCode,
                             CurrentPrice = double.Parse(quote["05. price"]?.ToString() ?? "0"),
-                            ChangePercent = double.Parse(quote["10. change percent"]?.ToString()?.Replace("%", "") ?? "0"),
+                            ChangePercent = ParsePercentString(quote["10. change percent"]?.ToString() ?? "0"),
                             Volume = long.Parse(quote["06. volume"]?.ToString() ?? "0"),
                             Open = double.Parse(quote["02. open"]?.ToString() ?? "0"),
                             High = double.Parse(quote["03. high"]?.ToString() ?? "0"),
@@ -266,6 +266,24 @@ namespace StockAnalysisSystem.Services
             {
                 System.Diagnostics.Debug.WriteLine($"Alpha Vantage 历史数据 API 调用失败: {ex.Message}");
                 return new StockData(); // 异常时也返回有效对象（避免 null）
+            }
+        }
+
+
+        private double ParsePercentString(string percentStr)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(percentStr))
+                    return 0;
+
+                percentStr = percentStr.Replace("%", "");
+                double value = double.Parse(percentStr);
+                return value / 100.0; // 关键：除以100
+            }
+            catch
+            {
+                return 0;
             }
         }
 

@@ -68,7 +68,7 @@ namespace StockAnalysisSystem
             // 百分比
             var percent = new TextBlock
             {
-                Text = $"{stock.ChangePercent:+0.0%;-0.0%}",
+                Text = $"{stock.ChangePercent:F2}%",
                 Width = 60,
                 FontSize = 14,
                 Foreground = new SolidColorBrush(isGainer ? Colors.Green : Colors.Red),

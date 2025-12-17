@@ -111,6 +111,31 @@ namespace StockAnalysisSystem.Data
             }
         }
 
+        // 🔴 在这里添加取消收藏的方法
+        public bool RemoveFavoriteStock(string username, string stockcode)
+        {
+            string sql = "DELETE FROM FavoriteStock WHERE username = @Name AND favoritestockcode = @Stockcode";
+
+            try
+            {
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
+                {
+                    command.Parameters.AddWithValue("@Name", username);
+                    command.Parameters.AddWithValue("@Stockcode", stockcode);
+                    int result = command.ExecuteNonQuery();
+                    return result > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"取消收藏失败：{ex.Message}");
+                return false;
+            }
+        }
+
+
+
+
         public List<StockItem> GetFavoriteStocks(String username)
         {
             var favorites = new List<StockItem>();
