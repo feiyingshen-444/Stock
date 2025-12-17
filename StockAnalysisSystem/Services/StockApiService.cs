@@ -201,60 +201,41 @@ namespace StockAnalysisSystem.Services
         //        return new List<HistoricalData>();
         //    }
         //}
-        private async Task<StockData> GetHistoricalStockDataAsync(StockData st,string stockCode, int days)
+        private async Task<StockData> GetHistoricalStockDataAsync(StockData st, string stockCode, int days)
         {
-            //var stockdata = new stockdata
-            //{
-            //    code = stockcode,
-            //    historicaldata = new list<historicaldata>()
-            //};
-            
             try
             {
-                // Alpha Vantage 接口
-                string url =  $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={stockCode}&outputsize=compact&apikey={_apiKey}";
-
+                string url = $"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={stockCode}&outputsize=compact&apikey={_apiKey}";
                 var response = await _httpClient.GetStringAsync(url);
                 var json = JObject.Parse(response);
 
-           
-
-               
-
-                // ✅ 打印原始返回内容（只打印前500字符，避免太长）
                 System.Diagnostics.Debug.WriteLine($"=== API 原始返回 ===");
                 System.Diagnostics.Debug.WriteLine(response.Length > 15 ? response.Substring(0, 15) : response);
-                // ✅ 打印 JSON 的 key
                 System.Diagnostics.Debug.WriteLine($"=== JSON Keys ===");
                 foreach (var key in json.Properties().Select(p => p.Name))
                 {
                     System.Diagnostics.Debug.WriteLine($"  - {key}");
                 }
+
+                // ✅ 先检查是否有 API 错误（如频率超限）
                 if (json["Note"] != null || json["Information"] != null)
                 {
                     System.Diagnostics.Debug.WriteLine("⚠️ API 调用频率超限，请稍后再试（历史）");
-                    StockData s = new StockData();
-                    return s;  // 返回没有历史数据的对象
+                    return new StockData(); // 立即返回，不继续
+                }
 
-
-                    if (json["Time Series (Daily)"] != null)
+                // ✅ 再处理正常的历史数据（注意：这行必须在 if 外面！）
+                if (json["Time Series (Daily)"] != null)
                 {
                     var timeSeries = json["Time Series (Daily)"];
-
                     int count = 0;
 
-                    //var sorted = timeSeries.Children<JProperty>()
-                    //    .OrderByDescending(p => p.Name)
-                    //    .Take(Math.Min(days * 2, timeSeries.Children().Count()));
                     var sorted = timeSeries.Children<JProperty>()
-                        // 把属性名解析为 DateTime 再排序，防止按字符串排序出错
                         .OrderByDescending(p =>
                         {
-                            DateTime dt;
-                            // 如果解析失败则返回最小值，这样解析成功的会排在前面
-                            return DateTime.TryParse(p.Name, out dt) ? dt : DateTime.MinValue;
+                            return DateTime.TryParse(p.Name, out DateTime dt) ? dt : DateTime.MinValue;
                         })
-                        .Take(days); // 直接取需要的条数（包含周末）
+                        .Take(days);
 
                     foreach (var dateProperty in sorted)
                     {
@@ -266,46 +247,25 @@ namespace StockAnalysisSystem.Services
                         var record = new HistoricalData
                         {
                             Date = date,
-                            Open = double.Parse(data["1. open"]?.ToString()),
-                            High = double.Parse(data["2. high"]?.ToString()),
-                            Low = double.Parse(data["3. low"]?.ToString()),
-                            Close = double.Parse(data["4. close"]?.ToString()),
-                            Volume = long.Parse(data["5. volume"]?.ToString())
+                            Open = double.Parse(data["1. open"]?.ToString() ?? "0"),
+                            High = double.Parse(data["2. high"]?.ToString() ?? "0"),
+                            Low = double.Parse(data["3. low"]?.ToString() ?? "0"),
+                            Close = double.Parse(data["4. close"]?.ToString() ?? "0"),
+                            Volume = long.Parse(data["5. volume"]?.ToString() ?? "0")
                         };
-                      
+
                         st.HistoricalData.Add(record);
                         count++;
                     }
-
-                    //    // 时间升序排列
-                    //    stockData.HistoricalData = stockData.HistoricalData
-                    //        .OrderBy(d => d.Date)
-                    //        .ToList();
-
-                    //    // 取最新一天数据填充 StockData 的其他字段
-                    //    var latest = stockData.HistoricalData.LastOrDefault();
-                    //    if (latest != null)
-                    //    {
-                    //        stockData.Open = latest.Open;
-                    //        stockData.High = latest.High;
-                    //        stockData.Low = latest.Low;
-                    //        stockData.Close = latest.Close;
-                    //        stockData.CurrentPrice = latest.Close;
-                    //        stockData.Volume = latest.Volume;
-                    //        stockData.UpdateTime = latest.Date;
-                    //    }
-                    //    stockData.Name = stockCode;
-                    //}
-
-                   
                 }
+
+                // ✅ 所有正常路径最终都返回 st
                 return st;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Alpha Vantage 历史数据 API 调用失败: {ex.Message}");
-                st = new StockData();
-                return st; // 返回空数据结构
+                return new StockData(); // 异常时也返回有效对象（避免 null）
             }
         }
 

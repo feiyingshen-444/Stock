@@ -130,7 +130,7 @@
                        Content="数据可视化" 
                        Width="104" 
                        Height="32" 
-                       Click="BtnAddToFavorites_Click" 
+                       Click="BtnVision_Click" 
                        Margin="0,0,290,0"
                        Style="{StaticResource ModernButtonStyle}"/>
                 <Button x:Name="btnRegister" 
