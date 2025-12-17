@@ -1,0 +1,127 @@
+﻿<Window x:Class="StockAnalysisSystem.DataVisualizationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="数据可视化" Height="600" Width="800"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <!-- 复用阴影效果 -->
+        <DropShadowEffect x:Key="CardShadow"
+                          BlurRadius="10"
+                          ShadowDepth="2"
+                          Opacity="0.15"
+                          Color="#000000"/>
+
+        <!-- 现代按钮样式（与主页面一致） -->
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="8,4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1565C0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#0D47A1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 涨幅条样式 -->
+        <Style x:Key="ChangeBarStyle" TargetType="Rectangle">
+            <Setter Property="RadiusX" Value="2"/>
+            <Setter Property="RadiusY" Value="2"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#F5F5F5">
+        <!-- 上半部分：涨跌排行榜（占 ~50%） -->
+        <Border Margin="30,30,30,244"
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="#E0E0E0"
+                BorderThickness="1"
+                Effect="{StaticResource CardShadow}"
+                Padding="25,20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 涨幅标题 -->
+                <TextBlock Text="📈 今日涨幅排行榜"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="#212121"
+                           Margin="0,0,0,15"/>
+
+                <!-- 涨幅列表 -->
+                <StackPanel Grid.Row="1" x:Name="spnGainers" />
+
+                <!-- 跌幅标题 -->
+                <TextBlock Grid.Row="2"
+                           Text="📉 今日跌幅排行榜"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="#212121"
+                           Margin="0,20,0,15"/>
+
+                <!-- 跌幅列表 -->
+                <StackPanel Grid.Row="3" x:Name="spnLosers" />
+            </Grid>
+        </Border>
+
+        <!-- 下半部分：图表区域（占 ~50%） -->
+        <Border Margin="30,363,30,30"
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="#E0E0E0"
+                BorderThickness="1"
+                Effect="{StaticResource CardShadow}"
+                Padding="25,20">
+            <Grid>
+                <TextBlock Text="📊 收藏股票趋势图（待实现）"
+                           FontSize="16"
+                           Foreground="#757575"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontStyle="Italic"/>
+                <!-- 这里未来可替换为 Chart 控件，如 LiveCharts -->
+            </Grid>
+        </Border>
+
+        <!-- 顶部标题栏（可选） -->
+        <TextBlock Text="我的收藏股票分析"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Foreground="White"
+                   Background="#2196F3"
+                   Padding="20,10"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Top"/>
+    </Grid>
+</Window>

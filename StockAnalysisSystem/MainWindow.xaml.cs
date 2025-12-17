@@ -109,6 +109,66 @@ namespace StockAnalysisSystem
             }
            
         }
+
+        // 找到这个方法并修改：
+        private async void BtnVision_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. 从数据库获取收藏股票
+                var favoriteStocks = _repository.GetFavoriteStocks(LoginUser);
+
+                if (favoriteStocks == null || favoriteStocks.Count == 0)
+                {
+                    MessageBox.Show("您还没有收藏任何股票！");
+                    return;
+                }
+
+                // 2. 创建API服务获取实时数据
+                var apiService = new StockApiService();
+                var updatedStocks = new List<StockItem>();
+
+                // 进度提示
+                MessageBox.Show($"正在获取 {favoriteStocks.Count} 只股票的实时数据...");
+
+                foreach (var stock in favoriteStocks)
+                {
+                    try
+                    {
+                        // 关键：调用API获取真实涨跌幅
+                        var realData = await apiService.GetDataAsync(stock.Code, 1);
+
+                        if (realData != null && realData.ChangePercent != 0)
+                        {
+                            // 更新涨跌幅
+                            stock.ChangePercent = realData.ChangePercent;
+                        }
+                        updatedStocks.Add(stock);
+
+                        // 避免API限制
+                        await Task.Delay(1500);
+                    }
+                    catch
+                    {
+                        updatedStocks.Add(stock);
+                    }
+                }
+
+                // 3. 打开可视化窗口
+                var win = new DataVisualizationWindow(updatedStocks);
+                win.Owner = this;
+                win.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"错误: {ex.Message}");
+            }
+        }
+
+
+
+
+
         private void BtnRegister_Click(object sender, RoutedEventArgs e) {
             //  MessageBox.Show("测试", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             LoginWindow loginWindow = new LoginWindow();
