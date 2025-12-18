@@ -59,7 +59,7 @@ namespace StockAnalysisSystem.Services
                 
                 if (days != 1)
                 {
-                    await Task.Delay(1500);
+                    await Task.Delay(2000);
                     historicalData = await GetHistoricalStockDataAsync(historicalData, stockCode, days);
 
                 }
@@ -269,5 +269,26 @@ namespace StockAnalysisSystem.Services
             }
         }
 
+<<<<<<< Updated upstream
+=======
+
+        private double ParsePercentString(string percentStr)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(percentStr))
+                    return 0;
+
+                percentStr = percentStr.Replace("%", "");
+                double value = double.Parse(percentStr);
+                return value ; // 关键：除以100
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+>>>>>>> Stashed changes
     }
 }

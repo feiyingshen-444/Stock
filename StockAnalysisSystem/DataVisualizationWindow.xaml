@@ -80,8 +80,10 @@
                            Margin="0,0,0,15"/>
 
                 <!-- 涨幅列表 -->
-                <StackPanel Grid.Row="1" x:Name="spnGainers" />
-
+                <!-- <StackPanel Grid.Row="1" x:Name="spnGainers" /> -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="spnGainers" />
+                </ScrollViewer>
                 <!-- 跌幅标题 -->
                 <TextBlock Grid.Row="2"
                            Text="📉 今日跌幅排行榜"
@@ -91,7 +93,9 @@
                            Margin="0,20,0,15"/>
 
                 <!-- 跌幅列表 -->
-                <StackPanel Grid.Row="3" x:Name="spnLosers" />
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="spnLosers" />
+                </ScrollViewer>
             </Grid>
         </Border>
 
