@@ -279,7 +279,7 @@ namespace StockAnalysisSystem.Services
 
                 percentStr = percentStr.Replace("%", "");
                 double value = double.Parse(percentStr);
-                return value / 100.0; // 关键：除以100
+                return value ; // 关键：除以100
             }
             catch
             {
