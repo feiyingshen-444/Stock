@@ -15,16 +15,12 @@ namespace StockAnalysisSystem.Data
         private readonly string _connectionString = $"server={"localhost"};database={"StockAnalysisDB"};uid={"sa"};pwd={"336699"};";
         private SqlConnection sqlCon;
 
-        
-
         public StockRepository()
         {
-            // 从配置文件读取连接字符串，这里使用默认值
-            // _connectionString = "Server=localhost;Database=StockAnalysisDB;User Id=sa;Password=336699;TrustServerCertificate=True;";
-            
             sqlCon = new SqlConnection(_connectionString);
-            TestConnection();   //连接数据库
+            TestConnection();
         }
+
         public bool TestConnection()
         {
             try
@@ -34,8 +30,7 @@ namespace StockAnalysisSystem.Data
             }
             catch (SqlException ex)
             {
-                // MessageBox.Show($"数据库连接失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                MessageBox.Show( "内部错误，数据库连接失败", "提示",MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("内部错误，数据库连接失败", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 return false;
             }
             catch (Exception ex)
@@ -44,9 +39,12 @@ namespace StockAnalysisSystem.Data
                 return false;
             }
         }
+
+        #region 用户相关
+
         public bool SelectedUser(String username, String password)
         {
-            string sql = "select*  from Users where username=@Name and  password=@Password ";
+            string sql = "select * from Users where username=@Name and password=@Password";
             try
             {
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
@@ -67,12 +65,11 @@ namespace StockAnalysisSystem.Data
                 MessageBox.Show($"登入失败：{ex.Message}");
                 return false;
             }
-            
         }
+
         public bool InsertUser(string username, string password)
         {
-            string sql = "INSERT INTO Users (username , password) VALUES (@Name , @Password)";
-
+            string sql = "INSERT INTO Users (username, password) VALUES (@Name, @Password)";
             try
             {
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
@@ -89,10 +86,14 @@ namespace StockAnalysisSystem.Data
                 return false;
             }
         }
-        public bool InsertFavoriteStock(string username, string stockname,string stockcode)
-        {
-            string sql = "INSERT INTO FavoriteStock (favoritestockname , username,favoritestockcode) VALUES ( @Stockname,@Name ,@Stockcode)";
 
+        #endregion
+
+        #region 收藏股票相关
+
+        public bool InsertFavoriteStock(string username, string stockname, string stockcode)
+        {
+            string sql = "INSERT INTO FavoriteStock (favoritestockname, username, favoritestockcode) VALUES (@Stockname, @Name, @Stockcode)";
             try
             {
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
@@ -111,11 +112,9 @@ namespace StockAnalysisSystem.Data
             }
         }
 
-        // 🔴 在这里添加取消收藏的方法
         public bool RemoveFavoriteStock(string username, string stockcode)
         {
             string sql = "DELETE FROM FavoriteStock WHERE username = @Name AND favoritestockcode = @Stockcode";
-
             try
             {
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
@@ -133,23 +132,17 @@ namespace StockAnalysisSystem.Data
             }
         }
 
-
-
-
         public List<StockItem> GetFavoriteStocks(String username)
         {
             var favorites = new List<StockItem>();
-
             try
             {
                 string sql = "SELECT favoritestockname, favoritestockcode FROM FavoriteStock WHERE username=@Name";
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
                     command.Parameters.AddWithValue("@Name", username);
-
                     using (var reader = command.ExecuteReader())
                     {
-                        //  添加这个循环来读取数据
                         while (reader.Read())
                         {
                             favorites.Add(new StockItem
@@ -166,37 +159,235 @@ namespace StockAnalysisSystem.Data
             {
                 System.Diagnostics.Debug.WriteLine($"获取收藏列表失败: {ex.Message}");
             }
-
             return favorites;
         }
-        //public List<StockItem> GetFavoriteStocks(String username)
-        //{
-        //    var favorites = new List<StockItem>();
 
-        //    try
-        //    {
-           
+        #endregion
 
-        //        string sql = "SELECT favoritestockname ,favoritestockcode FROM FavoriteStock Where username=@Name ";
-        //        using (SqlCommand command = new SqlCommand(sql, sqlCon))
-        //        {
-        //            command.Parameters.AddWithValue("@Name", username);
+        #region 股票历史数据 - 新增方法
 
+        /// <summary>
+        /// 保存股票历史数据到数据库
+        /// </summary>
+        public bool SaveStockHistoryData(string stockCode, string stockName, List<HistoricalData> historyData)
+        {
+            if (historyData == null || historyData.Count == 0)
+                return false;
 
-        //            using var reader = command.ExecuteReader();
-        //        }
-            
-                
+            try
+            {
+                foreach (var data in historyData)
+                {
+                    // 先检查是否已存在
+                    string checkSql = @"SELECT COUNT(*) FROM StockHistoryData 
+                                        WHERE StockCode = @Code AND TradeDate = @TradeDate";
 
+                    using (SqlCommand checkCmd = new SqlCommand(checkSql, sqlCon))
+                    {
+                        checkCmd.Parameters.AddWithValue("@Code", stockCode);
+                        checkCmd.Parameters.AddWithValue("@TradeDate", data.Date.Date);
 
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        System.Diagnostics.Debug.WriteLine($"获取收藏列表失败: {ex.Message}");
-        //    }
+                        int count = (int)checkCmd.ExecuteScalar();
+                        if (count > 0)
+                            continue; // 已存在，跳过
+                    }
 
-        //    return favorites;
-        //}
+                    // 插入新数据
+                    string insertSql = @"INSERT INTO StockHistoryData 
+                                        (StockCode, StockName, TradeDate, OpenPrice, HighPrice, LowPrice, ClosePrice, Volume, CreateTime)
+                                        VALUES (@Code, @Name, @TradeDate, @Open, @High, @Low, @Close, @Volume, @CreateTime)";
+
+                    using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlCon))
+                    {
+                        insertCmd.Parameters.AddWithValue("@Code", stockCode);
+                        insertCmd.Parameters.AddWithValue("@Name", stockName ?? stockCode);
+                        insertCmd.Parameters.AddWithValue("@TradeDate", data.Date.Date);
+                        insertCmd.Parameters.AddWithValue("@Open", data.Open);
+                        insertCmd.Parameters.AddWithValue("@High", data.High);
+                        insertCmd.Parameters.AddWithValue("@Low", data.Low);
+                        insertCmd.Parameters.AddWithValue("@Close", data.Close);
+                        insertCmd.Parameters.AddWithValue("@Volume", data.Volume);
+                        insertCmd.Parameters.AddWithValue("@CreateTime", DateTime.Now);
+
+                        insertCmd.ExecuteNonQuery();
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"成功保存 {stockCode} 的 {historyData.Count} 条历史数据");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"保存股票历史数据失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 从数据库获取股票历史数据
+        /// </summary>
+        public List<HistoricalData> GetStockHistoryData(string stockCode, int days = 30)
+        {
+            var history = new List<HistoricalData>();
+
+            try
+            {
+                string sql = @"SELECT TOP (@Days) TradeDate, OpenPrice, HighPrice, LowPrice, ClosePrice, Volume
+                              FROM StockHistoryData
+                              WHERE StockCode = @Code
+                              ORDER BY TradeDate DESC";
+
+                using (SqlCommand cmd = new SqlCommand(sql, sqlCon))
+                {
+                    cmd.Parameters.AddWithValue("@Code", stockCode);
+                    cmd.Parameters.AddWithValue("@Days", days);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            history.Add(new HistoricalData
+                            {
+                                Date = Convert.ToDateTime(reader["TradeDate"]),
+                                Open = Convert.ToDouble(reader["OpenPrice"]),
+                                High = Convert.ToDouble(reader["HighPrice"]),
+                                Low = Convert.ToDouble(reader["LowPrice"]),
+                                Close = Convert.ToDouble(reader["ClosePrice"]),
+                                Volume = Convert.ToInt64(reader["Volume"])
+                            });
+                        }
+                    }
+                }
+
+                // 按日期升序排列
+                history = history.OrderBy(h => h.Date).ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"获取股票历史数据失败: {ex.Message}");
+            }
+
+            return history;
+        }
+
+        /// <summary>
+        /// 获取多只股票的历史数据
+        /// </summary>
+        public Dictionary<string, List<HistoricalData>> GetMultipleStockHistoryData(List<string> stockCodes, int days = 30)
+        {
+            var result = new Dictionary<string, List<HistoricalData>>();
+
+            foreach (var code in stockCodes)
+            {
+                var history = GetStockHistoryData(code, days);
+                if (history.Count > 0)
+                {
+                    result[code] = history;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 清除过期的历史数据（保留最近N天）
+        /// </summary>
+        public int CleanOldHistoryData(int keepDays = 365)
+        {
+            try
+            {
+                string sql = @"DELETE FROM StockHistoryData 
+                              WHERE TradeDate < @CutoffDate";
+
+                using (SqlCommand cmd = new SqlCommand(sql, sqlCon))
+                {
+                    cmd.Parameters.AddWithValue("@CutoffDate", DateTime.Now.AddDays(-keepDays));
+                    int deleted = cmd.ExecuteNonQuery();
+                    System.Diagnostics.Debug.WriteLine($"清除了 {deleted} 条过期历史数据");
+                    return deleted;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"清除历史数据失败: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// 更新收藏股票的最新价格和涨跌幅
+        /// </summary>
+        public bool UpdateFavoriteStockPrice(string username, string stockCode, double price, double changePercent)
+        {
+            try
+            {
+                string sql = @"UPDATE FavoriteStock 
+                              SET CurrentPrice = @Price, ChangePercent = @ChangePercent, UpdateTime = @UpdateTime
+                              WHERE username = @Name AND favoritestockcode = @Code";
+
+                using (SqlCommand cmd = new SqlCommand(sql, sqlCon))
+                {
+                    cmd.Parameters.AddWithValue("@Name", username);
+                    cmd.Parameters.AddWithValue("@Code", stockCode);
+                    cmd.Parameters.AddWithValue("@Price", price);
+                    cmd.Parameters.AddWithValue("@ChangePercent", changePercent);
+                    cmd.Parameters.AddWithValue("@UpdateTime", DateTime.Now);
+
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"更新收藏股票价格失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 获取收藏股票（包含价格和涨跌幅）
+        /// </summary>
+        public List<StockItem> GetFavoriteStocksWithPrice(string username)
+        {
+            var favorites = new List<StockItem>();
+            try
+            {
+                string sql = @"SELECT favoritestockname, favoritestockcode, 
+                              ISNULL(CurrentPrice, 0) as CurrentPrice, 
+                              ISNULL(ChangePercent, 0) as ChangePercent,
+                              UpdateTime
+                              FROM FavoriteStock WHERE username=@Name";
+
+                using (SqlCommand command = new SqlCommand(sql, sqlCon))
+                {
+                    command.Parameters.AddWithValue("@Name", username);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            favorites.Add(new StockItem
+                            {
+                                Name = reader["favoritestockname"].ToString() ?? "",
+                                Code = reader["favoritestockcode"].ToString() ?? "",
+                                DisplayName = $"{reader["favoritestockcode"]} - {reader["favoritestockname"]}",
+                                CurrentPrice = Convert.ToDouble(reader["CurrentPrice"]),
+                                ChangePercent = Convert.ToDouble(reader["ChangePercent"])
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"获取收藏列表失败: {ex.Message}");
+                // 如果新字段不存在，回退到旧方法
+                return GetFavoriteStocks(username);
+            }
+            return favorites;
+        }
+
+        #endregion
+
+        #region 最近查询记录
 
         public List<StockItem> GetRecentStocks()
         {
@@ -230,6 +421,10 @@ namespace StockAnalysisSystem.Data
 
             return recent;
         }
+
+        #endregion
+
+        #region 股票数据保存
 
         public void SaveStockData(StockData stockData)
         {
@@ -314,5 +509,7 @@ namespace StockAnalysisSystem.Data
 
             return history;
         }
+
+        #endregion
     }
 }

@@ -117,7 +117,11 @@ namespace StockAnalysisSystem
             {
                 // 1. 从数据库获取收藏股票
                 var favoriteStocks = _repository.GetFavoriteStocks(LoginUser);
-
+                if (_isLoggedIn == false)
+                {
+                    MessageBox.Show("请先登入！");
+                    return;
+                }
                 if (favoriteStocks == null || favoriteStocks.Count == 0)
                 {
                     MessageBox.Show("您还没有收藏任何股票！");
