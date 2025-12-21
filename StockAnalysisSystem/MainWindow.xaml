@@ -179,8 +179,7 @@
                         <ListBox.ContextMenu>
                             <ContextMenu x:Name="cmFavoriteMenu">
                                 <MenuItem Header="取消收藏" Click="MenuRemoveFavorite_Click"/>
-                                <MenuItem Header="查看详情" Click="MenuViewDetail_Click"/>
-                                <MenuItem Header="刷新数据" Click="MenuRefreshData_Click"/>
+                                
                             </ContextMenu>
                         </ListBox.ContextMenu>
 

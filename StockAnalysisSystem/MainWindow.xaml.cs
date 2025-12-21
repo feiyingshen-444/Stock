@@ -551,26 +551,9 @@ namespace StockAnalysisSystem
             }
         }
 
-        private void MenuViewDetail_Click(object sender, RoutedEventArgs e)
-        {
-            if (lstFavorites.SelectedItem is StockItem selectedStock)
-            {
-                // 打开股票详情窗口或显示详情
-                MessageBox.Show($"股票代码: {selectedStock.Code}\n" +
-                               $"股票名称: {selectedStock.Name}",
-                               "股票详情");
-            }
-        }
+        
 
-        private void MenuRefreshData_Click(object sender, RoutedEventArgs e)
-        {
-            if (lstFavorites.SelectedItem is StockItem selectedStock)
-            {
-                // 刷新选中的收藏股票数据
-                txtStockCode.Text = selectedStock.Code;
-                SearchStockAsync();
-            }
-        }
+       
 
         // 最近查询的右键菜单方法（如果需要）
         private void MenuRemoveRecent_Click(object sender, RoutedEventArgs e)
