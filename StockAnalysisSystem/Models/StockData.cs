@@ -34,8 +34,7 @@ namespace StockAnalysisSystem.Models
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
+        public double CurrentPrice { get; set; }      // 新增：当前价格
         public double ChangePercent { get; set; }
     }
 }
-
-

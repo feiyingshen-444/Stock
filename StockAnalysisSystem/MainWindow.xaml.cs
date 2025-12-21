@@ -117,7 +117,11 @@ namespace StockAnalysisSystem
             {
                 // 1. 从数据库获取收藏股票
                 var favoriteStocks = _repository.GetFavoriteStocks(LoginUser);
-
+                if (_isLoggedIn == false)
+                {
+                    MessageBox.Show("请先登入！");
+                    return;
+                }
                 if (favoriteStocks == null || favoriteStocks.Count == 0)
                 {
                     MessageBox.Show("您还没有收藏任何股票！");
@@ -170,26 +174,57 @@ namespace StockAnalysisSystem
 
 
         private void BtnRegister_Click(object sender, RoutedEventArgs e) {
-            //  MessageBox.Show("测试", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            LoginWindow loginWindow = new LoginWindow();
-
-
-
-            // 设置窗口关闭后的回调
-            bool? result = loginWindow.ShowDialog();  // 阻塞直到窗口关闭
-
-            if (result == true && loginWindow._isLoggedIn)
+            if (_isLoggedIn == false)
             {
+                LoginWindow loginWindow = new LoginWindow();
 
-                
-                Application.Current.Properties["CurrentUser"] = loginWindow.LoginUser;
 
-                Application.Current.Properties["CurrentLoggedIn"] = loginWindow._isLoggedIn;
-                _isLoggedIn= loginWindow._isLoggedIn;
-                LoginUser= loginWindow.LoginUser;
-                btnRegister.Content = "Hi, " + Application.Current.Properties["CurrentUser"];
-                LoadFavorites();
+
+                // 设置窗口关闭后的回调
+                bool? result = loginWindow.ShowDialog();  // 阻塞直到窗口关闭
+
+                if (result == true && loginWindow._isLoggedIn)
+                {
+
+
+                    Application.Current.Properties["CurrentUser"] = loginWindow.LoginUser;
+
+                    Application.Current.Properties["CurrentLoggedIn"] = loginWindow._isLoggedIn;
+                    _isLoggedIn = loginWindow._isLoggedIn;
+                    LoginUser = loginWindow.LoginUser;
+                    btnRegister.Content = "Hi, " + Application.Current.Properties["CurrentUser"];
+                    LoadFavorites();
+                }
             }
+            else
+            {
+                MessageBoxResult result = MessageBox.Show(
+            "确定要退出登录吗？",           // 消息内容
+            "退出确认",                      // 标题
+            MessageBoxButton.YesNo,          // 按钮类型
+            MessageBoxImage.Question);       // 图标类型
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // 清除登录状态
+                    _isLoggedIn = false;
+                    LoginUser = null;
+
+                    // 清除应用程序属性
+                    Application.Current.Properties["CurrentUser"] = null;
+                    Application.Current.Properties["CurrentLoggedIn"] = false;
+
+                    // 恢复按钮文本
+                    btnRegister.Content = "登录/注册";
+
+                    
+                   _favorites.Clear();
+                    LoadFavorites();
+
+                    MessageBox.Show("已成功退出登录！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            
 
         }
         
