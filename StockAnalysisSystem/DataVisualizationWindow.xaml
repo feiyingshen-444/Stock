@@ -155,6 +155,16 @@
 
                             <StackPanel Orientation="Horizontal" 
                                         HorizontalAlignment="Right">
+
+                                <!-- 添加导出按钮 -->
+                                <Button x:Name="btnExportData" 
+                                        Content="💾 导出数据"
+                                        Width="112"
+                                        Margin="0,0,15,0"
+                                        Click="BtnExportData_Click"
+                                        Style="{StaticResource ModernButtonStyle}"/>
+                                        
+               
                                 <TextBlock Text="时间范围:" 
                                            VerticalAlignment="Center" 
                                            Margin="0,0,10,0"
@@ -172,7 +182,7 @@
                                 </ComboBox>
                                 <Button x:Name="btnRefreshChart" 
                                         Content="🔄 刷新数据" 
-                                        Width="100"
+                                        Width="107"
                                         Margin="15,0,0,0"
                                         Click="BtnRefreshChart_Click"
                                         Style="{StaticResource ModernButtonStyle}"/>

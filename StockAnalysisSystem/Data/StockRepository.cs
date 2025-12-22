@@ -12,7 +12,11 @@ namespace StockAnalysisSystem.Data
 {
     public class StockRepository
     {
-        private readonly string _connectionString = $"server={"localhost"};database={"StockAnalysisDB"};uid={"sa"};pwd={"336699"};";
+        private readonly string _connectionString =
+ @"Data Source=(LocalDB)\MSSQLLocalDB;" +
+ @"AttachDbFilename=C:\Users\zlh03\Documents\StockAnalysisDB.mdf;" +
+ @"Integrated Security=True;" +
+ @"Connect Timeout=30;";
         private SqlConnection sqlCon;
 
         public StockRepository()

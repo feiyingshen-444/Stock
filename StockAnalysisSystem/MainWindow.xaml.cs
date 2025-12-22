@@ -1,15 +1,18 @@
+using LiveCharts;
+using LiveCharts.Wpf;
+using OfficeOpenXml;
+using StockAnalysisSystem.Data;
+using StockAnalysisSystem.Models;
+using StockAnalysisSystem.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using LiveCharts;
-using LiveCharts.Wpf;
-using StockAnalysisSystem.Models;
-using StockAnalysisSystem.Services;
-using StockAnalysisSystem.Data;
+using Microsoft.Win32;
 
 
 
@@ -586,6 +589,151 @@ namespace StockAnalysisSystem
             }
         }
 
+
+        private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 设置 EPPlus 许可证（非商业/个人使用）
+                ExcelPackage.License.SetNonCommercialPersonal("StockAnalysisSystem");
+
+                // 检查是否有当前股票数据
+                if (_currentStock == null || string.IsNullOrEmpty(_currentStock.Code))
+                {
+                    MessageBox.Show("请先查询股票数据", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // 创建保存文件对话框
+                var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "Excel文件 (*.xlsx)|*.xlsx",
+                    DefaultExt = ".xlsx",
+                    FileName = $"{_currentStock.Code}_{_currentStock.Name}_{DateTime.Now:yyyyMMdd_HHmmss}"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    ExportStockDataToExcel(_currentStock, saveFileDialog.FileName);
+                    MessageBox.Show($"数据已成功导出到:\n{saveFileDialog.FileName}", 
+                                  "导出成功", 
+                                  MessageBoxButton.OK, 
+                                  MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"导出失败: {ex.Message}", "错误", 
+                              MessageBoxButton.OK, 
+                              MessageBoxImage.Error);
+            }
+        }
+
+        private void ExportStockDataToExcel(StockData stockData, string filePath)
+        {
+            using var package = new ExcelPackage();
+            
+            // 创建股票基本信息工作表
+            var infoSheet = package.Workbook.Worksheets.Add("股票信息");
+            infoSheet.Cells[1, 1].Value = "股票代码";
+            infoSheet.Cells[1, 2].Value = stockData.Code;
+            infoSheet.Cells[2, 1].Value = "股票名称";
+            infoSheet.Cells[2, 2].Value = stockData.Name;
+            infoSheet.Cells[3, 1].Value = "当前价格";
+            infoSheet.Cells[3, 2].Value = stockData.CurrentPrice;
+            infoSheet.Cells[3, 2].Style.Numberformat.Format = "$#,##0.00";
+            infoSheet.Cells[4, 1].Value = "涨跌幅";
+            infoSheet.Cells[4, 2].Value = stockData.ChangePercent / 100;
+            infoSheet.Cells[4, 2].Style.Numberformat.Format = "0.00%";
+            infoSheet.Cells[5, 1].Value = "成交量";
+            infoSheet.Cells[5, 2].Value = stockData.Volume;
+            infoSheet.Cells[5, 2].Style.Numberformat.Format = "#,##0";
+            infoSheet.Cells[6, 1].Value = "开盘价";
+            infoSheet.Cells[6, 2].Value = stockData.Open;
+            infoSheet.Cells[6, 2].Style.Numberformat.Format = "$#,##0.00";
+            infoSheet.Cells[7, 1].Value = "最高价";
+            infoSheet.Cells[7, 2].Value = stockData.High;
+            infoSheet.Cells[7, 2].Style.Numberformat.Format = "$#,##0.00";
+            infoSheet.Cells[8, 1].Value = "最低价";
+            infoSheet.Cells[8, 2].Value = stockData.Low;
+            infoSheet.Cells[8, 2].Style.Numberformat.Format = "$#,##0.00";
+            infoSheet.Cells[9, 1].Value = "收盘价";
+            infoSheet.Cells[9, 2].Value = stockData.Close;
+            infoSheet.Cells[9, 2].Style.Numberformat.Format = "$#,##0.00";
+            infoSheet.Cells[10, 1].Value = "最新日期";
+            infoSheet.Cells[10, 2].Value = stockData.NewDate;
+            infoSheet.Cells[10, 2].Style.Numberformat.Format = "yyyy-mm-dd";
+            infoSheet.Cells[11, 1].Value = "更新时间";
+            infoSheet.Cells[11, 2].Value = stockData.UpdateTime;
+            infoSheet.Cells[11, 2].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+
+            // 设置标题行样式
+            var titleRange = infoSheet.Cells[1, 1, 11, 1];
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+            titleRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(219, 234, 252));
+
+            // 自动调整列宽
+            infoSheet.Cells[infoSheet.Dimension.Address].AutoFitColumns();
+
+            // 创建历史数据工作表
+            if (stockData.HistoricalData != null && stockData.HistoricalData.Count > 0)
+            {
+                var historySheet = package.Workbook.Worksheets.Add("历史数据");
+                
+                // 设置标题行
+                string[] headers = { "日期", "开盘价", "最高价", "最低价", "收盘价", "成交量" };
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    historySheet.Cells[1, i + 1].Value = headers[i];
+                    historySheet.Cells[1, i + 1].Style.Font.Bold = true;
+                    historySheet.Cells[1, i + 1].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    historySheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(33, 150, 243));
+                    historySheet.Cells[1, i + 1].Style.Font.Color.SetColor(System.Drawing.Color.White);
+                }
+
+                // 填充历史数据（按日期升序排列）
+                var sortedData = stockData.HistoricalData.OrderBy(h => h.Date).ToList();
+                for (int i = 0; i < sortedData.Count; i++)
+                {
+                    var data = sortedData[i];
+                    int row = i + 2;
+
+                    historySheet.Cells[row, 1].Value = data.Date;
+                    historySheet.Cells[row, 1].Style.Numberformat.Format = "yyyy-mm-dd";
+                    historySheet.Cells[row, 2].Value = data.Open;
+                    historySheet.Cells[row, 2].Style.Numberformat.Format = "$#,##0.00";
+                    historySheet.Cells[row, 3].Value = data.High;
+                    historySheet.Cells[row, 3].Style.Numberformat.Format = "$#,##0.00";
+                    historySheet.Cells[row, 4].Value = data.Low;
+                    historySheet.Cells[row, 4].Style.Numberformat.Format = "$#,##0.00";
+                    historySheet.Cells[row, 5].Value = data.Close;
+                    historySheet.Cells[row, 5].Style.Numberformat.Format = "$#,##0.00";
+                    historySheet.Cells[row, 6].Value = data.Volume;
+                    historySheet.Cells[row, 6].Style.Numberformat.Format = "#,##0";
+                }
+
+                // 添加边框
+                var allCells = historySheet.Cells[1, 1, sortedData.Count + 1, headers.Length];
+                allCells.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                allCells.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                allCells.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                allCells.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                allCells.Style.Border.Top.Color.SetColor(System.Drawing.Color.FromArgb(200, 200, 200));
+                allCells.Style.Border.Bottom.Color.SetColor(System.Drawing.Color.FromArgb(200, 200, 200));
+                allCells.Style.Border.Left.Color.SetColor(System.Drawing.Color.FromArgb(200, 200, 200));
+                allCells.Style.Border.Right.Color.SetColor(System.Drawing.Color.FromArgb(200, 200, 200));
+
+                // 自动调整列宽
+                historySheet.Cells[historySheet.Dimension.Address].AutoFitColumns();
+
+                // 冻结首行
+                historySheet.View.FreezePanes(2, 1);
+            }
+
+            // 保存文件
+            package.SaveAs(new FileInfo(filePath));
+        }
 
     }
 }

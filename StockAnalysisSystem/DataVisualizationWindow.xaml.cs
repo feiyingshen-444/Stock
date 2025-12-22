@@ -1,5 +1,6 @@
 using LiveCharts;
 using LiveCharts.Wpf;
+using OfficeOpenXml;
 using StockAnalysisSystem.Data;
 using StockAnalysisSystem.Models;
 using StockAnalysisSystem.Services;
@@ -592,6 +593,254 @@ namespace StockAnalysisSystem
             _stockHistoryData.Clear();
             await LoadChartDataAsync();
         }
+
+        #region 数据导出功能
+
+        private void BtnExportData_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 设置 EPPlus 许可证（非商业/个人使用）
+                ExcelPackage.License.SetNonCommercialPersonal("StockAnalysisSystem");
+
+                // 获取当前排行榜数据
+                var exportData = PrepareExportData();
+
+                if (exportData.Count == 0)
+                {
+                    MessageBox.Show("没有数据可导出", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // 创建保存文件对话框
+                var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "Excel文件 (*.xlsx)|*.xlsx|CSV文件 (*.csv)|*.csv",
+                    DefaultExt = ".xlsx",
+                    FileName = $"股票数据_{DateTime.Now:yyyyMMdd_HHmmss}"
+                };
+
+                if (saveFileDialog.ShowDialog() == true)
+                {
+                    string filePath = saveFileDialog.FileName;
+                    string extension = System.IO.Path.GetExtension(filePath).ToLower();
+
+                    if (extension == ".xlsx")
+                    {
+                        ExportToExcel(exportData, filePath);
+                    }
+                    else if (extension == ".csv")
+                    {
+                        ExportToCsv(exportData, filePath);
+                    }
+
+                    MessageBox.Show($"数据已导出到: {filePath}", "导出成功",
+                                  MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"导出失败: {ex.Message}", "错误",
+                              MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private List<ExportStockItem> PrepareExportData()
+        {
+            var exportData = new List<ExportStockItem>();
+
+            try
+            {
+                // 获取涨跌幅榜数据
+                var allStocks = _favorites?
+                    .Where(s => s != null)
+                    .OrderByDescending(s => s.ChangePercent)
+                    .ToList();
+
+                if (allStocks == null) return exportData;
+
+                int rank = 1;
+                foreach (var stock in allStocks)
+                {
+                    // 获取最新价格数据
+                    double latestPrice = GetLatestPrice(stock.Code);
+                    double changeAmount = latestPrice * stock.ChangePercent / 100;
+
+                    // 获取成交量
+                    double volume = GetLatestVolume(stock.Code);
+
+                    var exportItem = new ExportStockItem
+                    {
+                        Rank = rank++,
+                        Symbol = stock.Code,
+                        CompanyName = stock.Name,
+                        Price = latestPrice,
+                        ChangeAmount = changeAmount,
+                        ChangePercentage = stock.ChangePercent,
+                        Volume = (long)volume,
+                        MarketCap = 0, // 如果没有市值数据可以设为0
+                        LastUpdated = DateTime.Now
+                    };
+
+                    exportData.Add(exportItem);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"准备导出数据异常: {ex.Message}");
+            }
+
+            return exportData;
+        }
+
+        private double GetLatestPrice(string symbol)
+        {
+            try
+            {
+                if (_stockHistoryData.ContainsKey(symbol) && _stockHistoryData[symbol].Count > 0)
+                {
+                    var latest = _stockHistoryData[symbol]
+                        .OrderByDescending(h => h.Date)
+                        .FirstOrDefault();
+                    return latest?.Close ?? 0;
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        private double GetLatestVolume(string symbol)
+        {
+            try
+            {
+                if (_stockHistoryData.ContainsKey(symbol) && _stockHistoryData[symbol].Count > 0)
+                {
+                    var latest = _stockHistoryData[symbol]
+                        .OrderByDescending(h => h.Date)
+                        .FirstOrDefault();
+                    return latest?.Volume ?? 0;
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        private void ExportToExcel(List<ExportStockItem> data, string filePath)
+        {
+            try
+            {
+                using (var package = new OfficeOpenXml.ExcelPackage())
+                {
+                    var worksheet = package.Workbook.Worksheets.Add("股票数据");
+
+                    // 设置标题行
+                    string[] headers = { "排名", "股票代码", "公司名称", "价格(美元)", "涨跌额(美元)", "涨跌幅(%)", "成交量", "市值(美元)", "交易时间" };
+
+                    for (int i = 0; i < headers.Length; i++)
+                    {
+                        worksheet.Cells[1, i + 1].Value = headers[i];
+                        worksheet.Cells[1, i + 1].Style.Font.Bold = true;
+                    }
+
+                    // 填充数据
+                    for (int i = 0; i < data.Count; i++)
+                    {
+                        var item = data[i];
+                        int row = i + 2;
+
+                        worksheet.Cells[row, 1].Value = item.Rank;
+                        worksheet.Cells[row, 2].Value = item.Symbol;
+                        worksheet.Cells[row, 3].Value = item.CompanyName;
+                        worksheet.Cells[row, 4].Value = item.Price;
+                        worksheet.Cells[row, 4].Style.Numberformat.Format = "$#,##0.00";
+
+                        worksheet.Cells[row, 5].Value = item.ChangeAmount;
+                        worksheet.Cells[row, 5].Style.Numberformat.Format = "$#,##0.00";
+
+                        worksheet.Cells[row, 6].Value = item.ChangePercentage / 100; // Excel百分比格式
+                        worksheet.Cells[row, 6].Style.Numberformat.Format = "0.00%";
+
+                        worksheet.Cells[row, 7].Value = item.Volume;
+                        worksheet.Cells[row, 7].Style.Numberformat.Format = "#,##0";
+
+                        worksheet.Cells[row, 8].Value = item.MarketCap;
+                        worksheet.Cells[row, 8].Style.Numberformat.Format = "$#,##0";
+
+                        worksheet.Cells[row, 9].Value = item.LastUpdated;
+                        worksheet.Cells[row, 9].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+                    }
+
+                    // 自动调整列宽
+                    worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                    // 添加边框
+                    var allCells = worksheet.Cells[1, 1, data.Count + 1, headers.Length];
+                    allCells.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    allCells.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    allCells.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    allCells.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+
+                    package.SaveAs(new System.IO.FileInfo(filePath));
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"导出Excel失败: {ex.Message}");
+            }
+        }
+
+        private void ExportToCsv(List<ExportStockItem> data, string filePath)
+        {
+            try
+            {
+                using (var writer = new System.IO.StreamWriter(filePath, false, System.Text.Encoding.UTF8))
+                {
+                    // 写入标题行
+                    writer.WriteLine("排名,股票代码,公司名称,价格(美元),涨跌额(美元),涨跌幅(%),成交量,市值(美元),交易时间");
+
+                    // 写入数据行
+                    foreach (var item in data)
+                    {
+                        var line = string.Format("{0},{1},{2},{3:F2},{4:F2},{5:F2}%,{6},{7:F2},{8:yyyy-MM-dd HH:mm:ss}",
+                            item.Rank,
+                            item.Symbol,
+                            item.CompanyName?.Replace(",", " ") ?? "", // 防止逗号干扰
+                            item.Price,
+                            item.ChangeAmount,
+                            item.ChangePercentage,
+                            item.Volume,
+                            item.MarketCap,
+                            item.LastUpdated);
+
+                        writer.WriteLine(line);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"导出CSV失败: {ex.Message}");
+            }
+        }
+
+        // 导出数据模型类
+        public class ExportStockItem
+        {
+            public int Rank { get; set; }
+            public string Symbol { get; set; }
+            public string CompanyName { get; set; }
+            public double Price { get; set; }
+            public double ChangeAmount { get; set; }
+            public double ChangePercentage { get; set; }
+            public long Volume { get; set; }
+            public double MarketCap { get; set; }
+            public DateTime LastUpdated { get; set; }
+        }
+
+        #endregion
+
+
+
+
 
         #endregion
     }
