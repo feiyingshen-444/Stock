@@ -147,11 +147,11 @@
 
                         <!-- 图表标题和工具栏 -->
                         <Grid Grid.Row="0" Margin="0,0,0,16">
-                            <TextBlock Text="📊 收藏股票价格走势"
+                            <TextBlock
                                        FontSize="18"
                                        FontWeight="Bold"
                                        Foreground="#212121"
-                                       VerticalAlignment="Center"/>
+                                       VerticalAlignment="Center"><Run Text="📊 收藏股票"/><Run Language="zh-cn" Text="数据可视化"/></TextBlock>
 
                             <StackPanel Orientation="Horizontal" 
                                         HorizontalAlignment="Right">

@@ -175,10 +175,10 @@ namespace StockAnalysisSystem
 
             try
             {
-                var container = new StackPanel 
-                { 
-                    Orientation = Orientation.Horizontal, 
-                    Margin = new Thickness(0, 0, 0, 12) 
+                var container = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Margin = new Thickness(0, 0, 0, 12)
                 };
 
                 var name = new TextBlock
@@ -310,12 +310,236 @@ namespace StockAnalysisSystem
 
                 System.Diagnostics.Debug.WriteLine($"数据加载完成，共 {_stockHistoryData.Count} 只股票有数据");
 
-                UpdateCharts();
+                // 在UI线程上更新图表
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    UpdateCharts();
+                });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"加载图表数据异常: {ex.Message}");
                 MessageBox.Show($"加载图表数据失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ShowLoading(false);
+            }
+        }
+
+        // ============================================================
+        // 修复后的 RefreshAndFetchMissingDataAsync 方法
+        // 请替换 DataVisualizationWindow.xaml.cs 中的同名方法
+        // ============================================================
+
+        /// <summary>
+        /// 【修复版】刷新时专用的数据加载方法 - 获取数据库中缺失的股票最新数据并保存，然后从数据库重新加载
+        /// </summary>
+        private async Task RefreshAndFetchMissingDataAsync()
+        {
+            if (_favorites == null || _favorites.Count == 0)
+            {
+                ShowNoData();
+                return;
+            }
+
+            ShowLoading(true);
+
+            try
+            {
+                int days = GetSelectedDays();
+                int fetchedFromApi = 0;
+                int savedToDb = 0;        // 【新增】成功保存到数据库的计数
+                int saveFailedCount = 0;  // 【新增】保存失败的计数
+                List<string> failedStocks = new List<string>(); // 【新增】保存失败的股票列表
+
+                System.Diagnostics.Debug.WriteLine($"🔄 开始刷新数据，检查 {_favorites.Count} 只股票...");
+
+                // 第一步：检查并从API获取缺失的数据，保存到数据库
+                foreach (var stock in _favorites)
+                {
+                    if (stock == null || string.IsNullOrEmpty(stock.Code)) continue;
+
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine($"正在检查股票: {stock.Code} - {stock.Name}");
+
+                        // 从数据库获取现有数据
+                        List<HistoricalData> historyFromDb = null;
+                        DateTime? latestDateInDb = null;
+
+                        if (_repository != null)
+                        {
+                            try
+                            {
+                                historyFromDb = _repository.GetStockHistoryData(stock.Code, days);
+                                if (historyFromDb != null && historyFromDb.Count > 0)
+                                {
+                                    latestDateInDb = historyFromDb.Max(h => h.Date);
+                                    System.Diagnostics.Debug.WriteLine($"📊 数据库中 {stock.Code} 最新数据日期: {latestDateInDb:yyyy-MM-dd}，共 {historyFromDb.Count} 条");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"从数据库获取 {stock.Code} 失败: {ex.Message}");
+                            }
+                        }
+
+                        // 判断是否需要从API获取新数据
+                        bool needFetchFromApi = false;
+
+                        if (historyFromDb == null || historyFromDb.Count < days / 2)
+                        {
+                            needFetchFromApi = true;
+                            System.Diagnostics.Debug.WriteLine($"📡 {stock.Code} 数据库数据不足，需要从API获取");
+                        }
+                        else if (latestDateInDb.HasValue)
+                        {
+                            DateTime today = DateTime.Today;
+                            int daysDiff = (today - latestDateInDb.Value).Days;
+                            if (daysDiff > 1)
+                            {
+                                needFetchFromApi = true;
+                                System.Diagnostics.Debug.WriteLine($"📡 {stock.Code} 数据库数据可能过期（{daysDiff}天前），需要从API更新");
+                            }
+                        }
+
+                        // 从API获取数据并保存到数据库
+                        if (needFetchFromApi && _apiService != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"📡 正在从API获取 {stock.Code} 的最新数据...");
+
+                            var stockData = await _apiService.GetDataAsync(stock.Code, days);
+
+                            // 【修复】检查返回的数据是否有效
+                            if (stockData != null &&
+                                stockData.HistoricalData != null &&
+                                stockData.HistoricalData.Count > 0)
+                            {
+                                fetchedFromApi++;
+                                System.Diagnostics.Debug.WriteLine($"✅ API返回 {stock.Code} 的 {stockData.HistoricalData.Count} 条数据");
+
+                                // 保存新数据到数据库
+                                if (_repository != null)
+                                {
+                                    try
+                                    {
+                                        bool saveResult = _repository.SaveStockHistoryData(stock.Code, stock.Name, stockData.HistoricalData);
+                                        if (saveResult)
+                                        {
+                                            savedToDb++;
+                                            System.Diagnostics.Debug.WriteLine($"💾 已保存 {stock.Code} 的数据到数据库");
+                                        }
+                                        else
+                                        {
+                                            saveFailedCount++;
+                                            failedStocks.Add(stock.Code);
+                                            System.Diagnostics.Debug.WriteLine($"⚠️ 保存 {stock.Code} 到数据库失败（SaveStockHistoryData 返回 false）");
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        saveFailedCount++;
+                                        failedStocks.Add(stock.Code);
+                                        System.Diagnostics.Debug.WriteLine($"❌ 保存 {stock.Code} 到数据库异常: {ex.Message}");
+                                    }
+                                }
+                                else
+                                {
+                                    saveFailedCount++;
+                                    failedStocks.Add(stock.Code);
+                                    System.Diagnostics.Debug.WriteLine($"❌ _repository 为 null，无法保存 {stock.Code}");
+                                }
+                            }
+                            else
+                            {
+                                // 【修复】API未返回有效数据时给出明确提示
+                                string reason = stockData == null ? "stockData 为 null" :
+                                                stockData.HistoricalData == null ? "HistoricalData 为 null" :
+                                                "HistoricalData 为空";
+                                System.Diagnostics.Debug.WriteLine($"⚠️ {stock.Code} API未返回有效数据 ({reason})");
+                                System.Diagnostics.Debug.WriteLine($"   提示: 可能是API调用频率超限，请等待1分钟后重试");
+                            }
+
+                            // API请求间隔，避免频率限制（Alpha Vantage 免费版每分钟5次）
+                            await Task.Delay(1500);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"❌ 处理 {stock.Code} 时出错: {ex.Message}");
+                    }
+                }
+
+                // 第二步：从数据库重新加载所有数据
+                _stockHistoryData.Clear();
+
+                foreach (var stock in _favorites)
+                {
+                    if (stock == null || string.IsNullOrEmpty(stock.Code)) continue;
+
+                    if (_repository != null)
+                    {
+                        try
+                        {
+                            var historyFromDb = _repository.GetStockHistoryData(stock.Code, days);
+                            if (historyFromDb != null && historyFromDb.Count > 0)
+                            {
+                                _stockHistoryData[stock.Code] = historyFromDb;
+                                System.Diagnostics.Debug.WriteLine($"✅ 从数据库加载 {stock.Code} 的 {historyFromDb.Count} 条历史数据");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"从数据库获取 {stock.Code} 失败: {ex.Message}");
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"🔄 刷新完成：从API获取 {fetchedFromApi} 只，保存成功 {savedToDb} 只，保存失败 {saveFailedCount} 只，共 {_stockHistoryData.Count} 只股票有数据");
+
+                // 第三步：在UI线程上更新图表
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    UpdateCharts();
+                    System.Diagnostics.Debug.WriteLine($"📈 图表已刷新，LineChart.Series.Count = {LineChart?.Series?.Count ?? 0}");
+                });
+
+                // 【修复】显示更详细的刷新结果，包括保存失败的情况
+                string message;
+                MessageBoxImage icon;
+
+                if (saveFailedCount > 0)
+                {
+                    message = $"数据刷新完成，但部分数据保存失败！\n\n" +
+                              $"• 从API获取: {fetchedFromApi} 只股票\n" +
+                              $"• 成功保存到数据库: {savedToDb} 只\n" +
+                              $"• 保存失败: {saveFailedCount} 只\n" +
+                              $"• 当前可显示: {_stockHistoryData.Count} 只\n\n" +
+                              $"保存失败的股票: {string.Join(", ", failedStocks)}\n\n" +
+                              $"请检查数据库连接或稍后重试。";
+                    icon = MessageBoxImage.Warning;
+                }
+                else if (fetchedFromApi > 0)
+                {
+                    message = $"数据刷新完成！\n\n" +
+                              $"• 从API获取并保存: {fetchedFromApi} 只股票\n" +
+                              $"• 当前可显示: {_stockHistoryData.Count} 只股票";
+                    icon = MessageBoxImage.Information;
+                }
+                else
+                {
+                    message = $"数据已是最新，无需从API获取\n\n" +
+                              $"• 当前可显示: {_stockHistoryData.Count} 只股票";
+                    icon = MessageBoxImage.Information;
+                }
+
+                MessageBox.Show(message, "刷新完成", MessageBoxButton.OK, icon);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"刷新数据异常: {ex.Message}");
+                MessageBox.Show($"刷新数据失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -334,7 +558,7 @@ namespace StockAnalysisSystem
 
         private void UpdateCharts()
         {
-            System.Diagnostics.Debug.WriteLine($"更新图表，数据源包含 {_stockHistoryData.Count} 只股票");
+            System.Diagnostics.Debug.WriteLine($"UpdateCharts 被调用，数据源包含 {_stockHistoryData.Count} 只股票");
 
             if (_stockHistoryData == null || _stockHistoryData.Count == 0)
             {
@@ -345,6 +569,8 @@ namespace StockAnalysisSystem
             HideNoData();
             UpdateLineChart();
             UpdateBarChart();
+
+            System.Diagnostics.Debug.WriteLine($"UpdateCharts 完成");
         }
 
         private void UpdateLineChart()
@@ -353,11 +579,13 @@ namespace StockAnalysisSystem
 
             try
             {
-                LineChart.Series = new SeriesCollection();
+                // 创建新的SeriesCollection
+                var newSeries = new SeriesCollection();
 
                 if (_stockHistoryData.Count == 0)
                 {
                     System.Diagnostics.Debug.WriteLine("折线图：没有数据可显示");
+                    LineChart.Series = newSeries;
                     return;
                 }
 
@@ -413,9 +641,12 @@ namespace StockAnalysisSystem
                         LineSmoothness = 0.3
                     };
 
-                    LineChart.Series.Add(lineSeries);
+                    newSeries.Add(lineSeries);
                     colorIndex++;
                 }
+
+                // 设置新的Series（这会触发图表重绘）
+                LineChart.Series = newSeries;
 
                 System.Diagnostics.Debug.WriteLine($"折线图：共添加 {LineChart.Series.Count} 条折线");
             }
@@ -431,11 +662,13 @@ namespace StockAnalysisSystem
 
             try
             {
-                BarChart.Series = new SeriesCollection();
+                // 创建新的SeriesCollection
+                var newSeries = new SeriesCollection();
 
                 if (_stockHistoryData.Count == 0)
                 {
                     System.Diagnostics.Debug.WriteLine("柱状图：没有数据可显示");
+                    BarChart.Series = newSeries;
                     return;
                 }
 
@@ -461,6 +694,7 @@ namespace StockAnalysisSystem
                 if (stockDataList.Count == 0)
                 {
                     System.Diagnostics.Debug.WriteLine("柱状图：没有有效数据");
+                    BarChart.Series = newSeries;
                     return;
                 }
 
@@ -482,15 +716,13 @@ namespace StockAnalysisSystem
                 BarChart.Pan = PanningOptions.None;
 
                 // 使用单个 ColumnSeries，所有股票在同一个系列中
-                // 这样 tooltip 只会显示当前悬停的那个值
                 var allValues = new ChartValues<double>();
                 foreach (var (name, volume) in stockDataList)
                 {
                     allValues.Add(volume);
                 }
 
-                // 创建带有多种颜色的柱状图
-                // 使用 ColumnSeries 的 Configuration 来为每个柱子设置不同颜色
+                // 创建柱状图
                 var columnSeries = new ColumnSeries
                 {
                     Title = "成交量",
@@ -498,7 +730,6 @@ namespace StockAnalysisSystem
                     MaxColumnWidth = 60,
                     ColumnPadding = 5,
                     DataLabels = false,
-                    // 使用渐变色或第一个颜色
                     Fill = new SolidColorBrush(_chartColors[0]),
                     LabelPoint = point =>
                     {
@@ -511,10 +742,10 @@ namespace StockAnalysisSystem
                     }
                 };
 
-                BarChart.Series.Add(columnSeries);
+                newSeries.Add(columnSeries);
 
-                // 如果想要多颜色，可以用多个系列（但tooltip会显示多个）
-                // 这里选择单系列，tooltip更简洁
+                // 设置新的Series（这会触发图表重绘）
+                BarChart.Series = newSeries;
 
                 System.Diagnostics.Debug.WriteLine($"柱状图：共 {stockDataList.Count} 只股票");
             }
@@ -530,20 +761,26 @@ namespace StockAnalysisSystem
 
         private void ShowLoading(bool show)
         {
-            if (LoadingOverlay != null)
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-            }
+                if (LoadingOverlay != null)
+                {
+                    LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                }
+            });
         }
 
         private void ShowNoData()
         {
-            if (txtNoData != null)
-                txtNoData.Visibility = Visibility.Visible;
-            if (LineChart != null)
-                LineChart.Visibility = Visibility.Collapsed;
-            if (BarChart != null)
-                BarChart.Visibility = Visibility.Collapsed;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (txtNoData != null)
+                    txtNoData.Visibility = Visibility.Visible;
+                if (LineChart != null)
+                    LineChart.Visibility = Visibility.Collapsed;
+                if (BarChart != null)
+                    BarChart.Visibility = Visibility.Collapsed;
+            });
         }
 
         private void HideNoData()
@@ -588,10 +825,30 @@ namespace StockAnalysisSystem
             _ = LoadChartDataAsync();
         }
 
+        /// <summary>
+        /// 刷新按钮点击事件 - 检查并获取数据库中缺失的股票最新数据，保存到数据库后刷新显示
+        /// </summary>
         private async void BtnRefreshChart_Click(object sender, RoutedEventArgs e)
         {
-            _stockHistoryData.Clear();
-            await LoadChartDataAsync();
+            // 禁用刷新按钮，防止重复点击
+            if (btnRefreshChart != null)
+            {
+                btnRefreshChart.IsEnabled = false;
+            }
+
+            try
+            {
+                // 调用新的刷新方法，会检查数据库中缺失的数据并从API获取
+                await RefreshAndFetchMissingDataAsync();
+            }
+            finally
+            {
+                // 重新启用刷新按钮
+                if (btnRefreshChart != null)
+                {
+                    btnRefreshChart.IsEnabled = true;
+                }
+            }
         }
 
         #region 数据导出功能
@@ -729,7 +986,7 @@ namespace StockAnalysisSystem
         {
             try
             {
-                using (var package = new OfficeOpenXml.ExcelPackage())
+                using (var package = new ExcelPackage())
                 {
                     var worksheet = package.Workbook.Worksheets.Add("股票数据");
 
@@ -837,10 +1094,6 @@ namespace StockAnalysisSystem
         }
 
         #endregion
-
-
-
-
 
         #endregion
     }

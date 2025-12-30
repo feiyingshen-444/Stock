@@ -12,11 +12,7 @@ namespace StockAnalysisSystem.Data
 {
     public class StockRepository
     {
-        private readonly string _connectionString =
- @"Data Source=(LocalDB)\MSSQLLocalDB;" +
- @"AttachDbFilename=C:\Users\zlh03\Documents\StockAnalysisDB.mdf;" +
- @"Integrated Security=True;" +
- @"Connect Timeout=30;";
+        private readonly string _connectionString = $"server={"localhost"};database={"StockAnalysisDB"};uid={"sa"};pwd={"336699"};";
         private SqlConnection sqlCon;
 
         public StockRepository()
@@ -25,11 +21,43 @@ namespace StockAnalysisSystem.Data
             TestConnection();
         }
 
+        /// <summary>
+        /// 【修复】确保数据库连接处于打开状态
+        /// </summary>
+        private void EnsureConnectionOpen()
+        {
+            try
+            {
+                if (sqlCon == null)
+                {
+                    sqlCon = new SqlConnection(_connectionString);
+                }
+
+                if (sqlCon.State == ConnectionState.Closed || sqlCon.State == ConnectionState.Broken)
+                {
+                    if (sqlCon.State == ConnectionState.Broken)
+                    {
+                        sqlCon.Close();
+                    }
+                    sqlCon.Open();
+                    System.Diagnostics.Debug.WriteLine("✅ 数据库连接已重新打开");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 重新打开数据库连接失败: {ex.Message}");
+                throw;
+            }
+        }
+
         public bool TestConnection()
         {
             try
             {
-                sqlCon.Open();
+                if (sqlCon.State != ConnectionState.Open)
+                {
+                    sqlCon.Open();
+                }
                 return true;
             }
             catch (SqlException ex)
@@ -51,6 +79,7 @@ namespace StockAnalysisSystem.Data
             string sql = "select * from Users where username=@Name and password=@Password";
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
                     command.Parameters.AddWithValue("@Name", username);
@@ -76,6 +105,7 @@ namespace StockAnalysisSystem.Data
             string sql = "INSERT INTO Users (username, password) VALUES (@Name, @Password)";
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
                     command.Parameters.AddWithValue("@Name", username);
@@ -100,6 +130,7 @@ namespace StockAnalysisSystem.Data
             string sql = "INSERT INTO FavoriteStock (favoritestockname, username, favoritestockcode) VALUES (@Stockname, @Name, @Stockcode)";
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
                     command.Parameters.AddWithValue("@Name", username);
@@ -121,6 +152,7 @@ namespace StockAnalysisSystem.Data
             string sql = "DELETE FROM FavoriteStock WHERE username = @Name AND favoritestockcode = @Stockcode";
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
                     command.Parameters.AddWithValue("@Name", username);
@@ -141,6 +173,7 @@ namespace StockAnalysisSystem.Data
             var favorites = new List<StockItem>();
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
                 string sql = "SELECT favoritestockname, favoritestockcode FROM FavoriteStock WHERE username=@Name";
                 using (SqlCommand command = new SqlCommand(sql, sqlCon))
                 {
@@ -171,64 +204,91 @@ namespace StockAnalysisSystem.Data
         #region 股票历史数据 - 新增方法
 
         /// <summary>
-        /// 保存股票历史数据到数据库
+        /// 【修复】保存股票历史数据到数据库 - 添加连接检查和详细日志
         /// </summary>
         public bool SaveStockHistoryData(string stockCode, string stockName, List<HistoricalData> historyData)
         {
             if (historyData == null || historyData.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ SaveStockHistoryData: {stockCode} 没有数据需要保存");
                 return false;
+            }
+
+            int savedCount = 0;
+            int skippedCount = 0;
 
             try
             {
+                // 【修复】确保连接打开
+                EnsureConnectionOpen();
+
                 foreach (var data in historyData)
                 {
-                    // 先检查是否已存在
-                    string checkSql = @"SELECT COUNT(*) FROM StockHistoryData 
-                                        WHERE StockCode = @Code AND TradeDate = @TradeDate";
-
-                    using (SqlCommand checkCmd = new SqlCommand(checkSql, sqlCon))
+                    try
                     {
-                        checkCmd.Parameters.AddWithValue("@Code", stockCode);
-                        checkCmd.Parameters.AddWithValue("@TradeDate", data.Date.Date);
+                        // 先检查是否已存在
+                        string checkSql = @"SELECT COUNT(*) FROM StockHistoryData 
+                                            WHERE StockCode = @Code AND TradeDate = @TradeDate";
 
-                        int count = (int)checkCmd.ExecuteScalar();
-                        if (count > 0)
+                        bool exists = false;
+                        using (SqlCommand checkCmd = new SqlCommand(checkSql, sqlCon))
+                        {
+                            checkCmd.Parameters.AddWithValue("@Code", stockCode);
+                            checkCmd.Parameters.AddWithValue("@TradeDate", data.Date.Date);
+
+                            int count = (int)checkCmd.ExecuteScalar();
+                            exists = count > 0;
+                        }
+
+                        if (exists)
+                        {
+                            skippedCount++;
                             continue; // 已存在，跳过
+                        }
+
+                        // 插入新数据
+                        string insertSql = @"INSERT INTO StockHistoryData 
+                                            (StockCode, StockName, TradeDate, OpenPrice, HighPrice, LowPrice, ClosePrice, Volume, CreateTime)
+                                            VALUES (@Code, @Name, @TradeDate, @Open, @High, @Low, @Close, @Volume, @CreateTime)";
+
+                        using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlCon))
+                        {
+                            insertCmd.Parameters.AddWithValue("@Code", stockCode);
+                            insertCmd.Parameters.AddWithValue("@Name", stockName ?? stockCode);
+                            insertCmd.Parameters.AddWithValue("@TradeDate", data.Date.Date);
+                            insertCmd.Parameters.AddWithValue("@Open", data.Open);
+                            insertCmd.Parameters.AddWithValue("@High", data.High);
+                            insertCmd.Parameters.AddWithValue("@Low", data.Low);
+                            insertCmd.Parameters.AddWithValue("@Close", data.Close);
+                            insertCmd.Parameters.AddWithValue("@Volume", data.Volume);
+                            insertCmd.Parameters.AddWithValue("@CreateTime", DateTime.Now);
+
+                            int result = insertCmd.ExecuteNonQuery();
+                            if (result > 0)
+                            {
+                                savedCount++;
+                            }
+                        }
                     }
-
-                    // 插入新数据
-                    string insertSql = @"INSERT INTO StockHistoryData 
-                                        (StockCode, StockName, TradeDate, OpenPrice, HighPrice, LowPrice, ClosePrice, Volume, CreateTime)
-                                        VALUES (@Code, @Name, @TradeDate, @Open, @High, @Low, @Close, @Volume, @CreateTime)";
-
-                    using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlCon))
+                    catch (Exception ex)
                     {
-                        insertCmd.Parameters.AddWithValue("@Code", stockCode);
-                        insertCmd.Parameters.AddWithValue("@Name", stockName ?? stockCode);
-                        insertCmd.Parameters.AddWithValue("@TradeDate", data.Date.Date);
-                        insertCmd.Parameters.AddWithValue("@Open", data.Open);
-                        insertCmd.Parameters.AddWithValue("@High", data.High);
-                        insertCmd.Parameters.AddWithValue("@Low", data.Low);
-                        insertCmd.Parameters.AddWithValue("@Close", data.Close);
-                        insertCmd.Parameters.AddWithValue("@Volume", data.Volume);
-                        insertCmd.Parameters.AddWithValue("@CreateTime", DateTime.Now);
-
-                        insertCmd.ExecuteNonQuery();
+                        System.Diagnostics.Debug.WriteLine($"❌ 保存 {stockCode} 日期 {data.Date:yyyy-MM-dd} 的数据失败: {ex.Message}");
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"成功保存 {stockCode} 的 {historyData.Count} 条历史数据");
-                return true;
+                System.Diagnostics.Debug.WriteLine($"✅ {stockCode}: 成功保存 {savedCount} 条，跳过 {skippedCount} 条已存在数据");
+                return savedCount > 0 || skippedCount > 0; // 只要有处理就算成功
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"保存股票历史数据失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 保存股票历史数据失败 [{stockCode}]: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   异常详情: {ex.ToString()}");
                 return false;
             }
         }
 
         /// <summary>
-        /// 从数据库获取股票历史数据
+        /// 【修复】从数据库获取股票历史数据 - 添加连接检查
         /// </summary>
         public List<HistoricalData> GetStockHistoryData(string stockCode, int days = 30)
         {
@@ -236,6 +296,9 @@ namespace StockAnalysisSystem.Data
 
             try
             {
+                // 【修复】确保连接打开
+                EnsureConnectionOpen();
+
                 string sql = @"SELECT TOP (@Days) TradeDate, OpenPrice, HighPrice, LowPrice, ClosePrice, Volume
                               FROM StockHistoryData
                               WHERE StockCode = @Code
@@ -265,10 +328,11 @@ namespace StockAnalysisSystem.Data
 
                 // 按日期升序排列
                 history = history.OrderBy(h => h.Date).ToList();
+                System.Diagnostics.Debug.WriteLine($"📊 GetStockHistoryData: {stockCode} 从数据库获取 {history.Count} 条数据");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"获取股票历史数据失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 获取股票历史数据失败 [{stockCode}]: {ex.Message}");
             }
 
             return history;
@@ -300,6 +364,8 @@ namespace StockAnalysisSystem.Data
         {
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
+
                 string sql = @"DELETE FROM StockHistoryData 
                               WHERE TradeDate < @CutoffDate";
 
@@ -325,6 +391,8 @@ namespace StockAnalysisSystem.Data
         {
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
+
                 string sql = @"UPDATE FavoriteStock 
                               SET CurrentPrice = @Price, ChangePercent = @ChangePercent, UpdateTime = @UpdateTime
                               WHERE username = @Name AND favoritestockcode = @Code";
@@ -355,6 +423,8 @@ namespace StockAnalysisSystem.Data
             var favorites = new List<StockItem>();
             try
             {
+                EnsureConnectionOpen(); // 【修复】确保连接打开
+
                 string sql = @"SELECT favoritestockname, favoritestockcode, 
                               ISNULL(CurrentPrice, 0) as CurrentPrice, 
                               ISNULL(ChangePercent, 0) as ChangePercent,
